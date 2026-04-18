@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+.env
+
+# Build files
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Caches
+.ruff_cache/
+.pytest_cache/
+
+# IDEs and Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Large archives and temporary files
+*.rar
+*.zip
+*.tar.gz
+*.log
+file
