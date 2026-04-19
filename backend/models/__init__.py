@@ -7,6 +7,12 @@ from .bill import Bill
 from .communication import Communication
 from .professional import Professional
 from .user import User
+from .salary import Salary
+from .salary_component import SalaryComponent
+from .payroll import Payroll
+from .salary_payment import SalaryPayment
+from .payment_installment import PaymentInstallment
+from .installment_payment import InstallmentPayment
 
 __all__ = [
     "Patient",
@@ -18,4 +24,10 @@ __all__ = [
     "Communication",
     "Professional",
     "User",
+    "Salary",
+    "SalaryComponent",
+    "Payroll",
+    "SalaryPayment",
+    "PaymentInstallment",
+    "InstallmentPayment",
 ]

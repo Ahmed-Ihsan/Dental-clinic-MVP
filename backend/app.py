@@ -26,6 +26,12 @@ from models import (
     Communication,
     Professional,
     User,
+    Salary,
+    SalaryComponent,
+    Payroll,
+    SalaryPayment,
+    PaymentInstallment,
+    InstallmentPayment,
 )
 
 with app.app_context():
@@ -37,6 +43,10 @@ from routes.professional_routes import professional_bp
 from routes.medical_history_routes import medical_history_bp
 from routes.bill_routes import bill_bp
 from routes.auth_routes import auth_bp
+from routes.search_routes import search_bp
+from routes.salary_routes import salary_bp
+from routes.payroll_routes import payroll_bp
+from routes.installment_routes import installment_bp
 
 app.register_blueprint(patient_bp, url_prefix="/api")
 app.register_blueprint(appointment_bp, url_prefix="/api")
@@ -45,6 +55,10 @@ app.register_blueprint(professional_bp, url_prefix="/api")
 app.register_blueprint(medical_history_bp, url_prefix="/api")
 app.register_blueprint(bill_bp, url_prefix="/api")
 app.register_blueprint(auth_bp, url_prefix="/api")
+app.register_blueprint(search_bp, url_prefix="/api")
+app.register_blueprint(salary_bp, url_prefix="/api")
+app.register_blueprint(payroll_bp, url_prefix="/api")
+app.register_blueprint(installment_bp, url_prefix="/api")
 
 
 @login_manager.user_loader

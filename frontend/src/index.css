@@ -624,6 +624,126 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ============================================
+   TABS
+   ============================================ */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.tab-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ============================================
+   DATA GRID
+   ============================================ */
+.data-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.data-item {
+  display: block;
+  padding: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+  text-decoration: none;
+  color: inherit;
+}
+
+.data-item:hover {
+  background: var(--bg-card);
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.data-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.data-item-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.data-item-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.data-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.data-item-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.data-item-detail:before {
+  content: "•";
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* ============================================
    FORM GLASS CARD
    ============================================ */
 .form-card {
@@ -1032,6 +1152,12 @@ textarea.field-input {
 .empty-state-text {
   font-size: 15px;
   font-weight: 500;
+}
+
+.empty-state-subtext {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 
 /* ============================================
@@ -1633,6 +1759,8 @@ textarea.field-input {
   .charts-grid { grid-template-columns: 1fr; }
   .management-layout { grid-template-columns: 1fr; }
   .form-card { position: relative; top: 0; }
+  .tabs { flex-wrap: wrap; }
+  .tab { flex: none; min-width: calc(33.333% - 4px); }
 }
 
 @media (max-width: 900px) {
@@ -1642,15 +1770,18 @@ textarea.field-input {
 }
 
 @media (max-width: 640px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .quick-actions-grid { grid-template-columns: repeat(2, 1fr); }
-  .recent-grid { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
-  .form-grid-full { grid-column: span 1; }
-  .detail-grid { grid-template-columns: 1fr; }
-  .detail-item-full { grid-column: span 1; }
-  .modal-edit-grid { grid-template-columns: 1fr; }
-  .modal-edit-grid .field-group.full { grid-column: span 1; }
+  .top-bar { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .page-header { text-align: center; }
+  .page-header-title { font-size: 24px; }
+  .quick-actions-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .table-wrapper { overflow-x: auto; }
+  .data-table { min-width: 600px; }
+  .tabs { flex-direction: column; gap: 8px; }
+  .tab { min-width: 100%; }
+  .data-grid { gap: 12px; }
+  .data-item { padding: 16px; }
+  .data-item-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
 
 /* Quick Entry Layout */
