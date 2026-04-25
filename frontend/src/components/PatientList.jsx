@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DataList from './DataList.jsx';
 import PatientDetailModal from './PatientDetailModal.jsx';
 
@@ -29,6 +30,7 @@ const nameRender = (name, patient) => (
 );
 
 const PatientList = ({ refreshTrigger }) => {
+  const navigate = useNavigate();
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -48,6 +50,12 @@ const PatientList = ({ refreshTrigger }) => {
   ];
 
   const actions = [
+    {
+      key: 'casesheet',
+      label: '📋 ملف المريض',
+      variant: 'primary',
+      onClick: (item) => navigate(`/patients/${item.id}/case-sheet`),
+    },
     { key: 'view', label: '👁 عرض', variant: 'ghost', onClick: setSelectedPatient },
     { key: 'delete', label: '🗑 حذف', variant: 'danger', onClick: item => {
       if (window.confirm('هل أنت متأكد من حذف هذا المريض؟')) {

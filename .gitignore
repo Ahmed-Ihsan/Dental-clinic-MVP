@@ -29,6 +29,12 @@ htmlcov/
 *.sw?
 .DS_Store
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
 # Large archives and temporary files
 *.rar
 *.zip

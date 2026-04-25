@@ -1,8 +1,9 @@
+import json
 from flask import Blueprint, request, jsonify
-from models import Payroll, Salary, Professional, SalaryPayment
+from models import Payroll, Salary, Professional, SalaryPayment, Treatment, Appointment, Expense
 from database import db
 from datetime import datetime, date
-from sqlalchemy import func
+from sqlalchemy import func, extract
 
 payroll_bp = Blueprint("payroll", __name__)
 
@@ -35,54 +36,85 @@ def generate_payroll():
     data = request.get_json()
     professional_ids = data.get("professional_ids", [])
     payroll_period = data.get("payroll_period", Payroll.get_payroll_period())
-    preview_only = data.get("preview_only", False)  # New parameter for preview
+    preview_only = data.get("preview_only", False)
 
     if not professional_ids:
         return jsonify({"error": "No professionals specified"}), 400
 
+    try:
+        year, month = [int(x) for x in payroll_period.split("-")]
+    except (ValueError, AttributeError):
+        return jsonify({"error": "Invalid payroll_period format. Use YYYY-MM"}), 400
+
     generated_payrolls = []
+    today = date.today()
 
     for professional_id in professional_ids:
-        # Check if payroll already exists for this period
+        # Skip if payroll already exists for this period
         existing = Payroll.query.filter(
             Payroll.professional_id == professional_id,
             Payroll.payroll_period == payroll_period,
         ).first()
-
         if existing:
-            continue  # Skip if already exists
+            continue
 
         # Get active salary for professional
         salary = Salary.query.filter(
-            Salary.professional_id == professional_id, Salary.is_active == True
+            Salary.professional_id == professional_id,
+            Salary.is_active == True,
         ).first()
-
         if not salary:
-            continue  # Skip if no active salary
+            continue
 
-        # Calculate components
-        allowances = sum(
-            c.amount
-            for c in salary.components
-            if c.component_type == "allowance" and c.effective_date <= date.today()
+        # ── Salary-component allowances & deductions ──────────────────────────
+        component_allowances = sum(
+            c.amount for c in salary.components
+            if c.component_type == "allowance" and c.effective_date <= today
         )
-        deductions = sum(
-            c.amount
-            for c in salary.components
-            if c.component_type == "deduction" and c.effective_date <= date.today()
+        component_deductions = sum(
+            c.amount for c in salary.components
+            if c.component_type == "deduction" and c.effective_date <= today
         )
 
-        gross_salary = salary.base_salary + allowances
-        net_salary = gross_salary - deductions
+        # ── Commission: sum treatment costs for this doctor in the period ──────
+        treatment_revenue = (
+            db.session.query(func.sum(Treatment.cost))
+            .join(Appointment, Treatment.appointment_id == Appointment.id)
+            .filter(
+                Appointment.dentist_id == professional_id,
+                extract("year",  Treatment.treatment_date) == year,
+                extract("month", Treatment.treatment_date) == month,
+            )
+            .scalar() or 0.0
+        )
+        commission_amount = round(
+            treatment_revenue * ((salary.commission_percentage or 0.0) / 100.0), 2
+        )
 
-        # Create payroll record
+        # ── Doctor debt deductions (unpaid advances / clinic debts) ───────────
+        debt_expenses = Expense.query.filter(
+            Expense.doctor_id == professional_id,
+            Expense.category == "doctor",
+            Expense.status == "debt",
+        ).all()
+        debt_total   = sum(e.amount for e in debt_expenses)
+        expense_ids  = [e.id for e in debt_expenses]
+
+        # ── Final figures ─────────────────────────────────────────────────────
+        gross_salary     = salary.base_salary + component_allowances + commission_amount
+        total_deductions = component_deductions + debt_total
+        net_salary       = max(0.0, gross_salary - total_deductions)
+
         payroll = Payroll(
             payroll_period=payroll_period,
             professional_id=professional_id,
             salary_id=salary.id,
             base_salary=salary.base_salary,
-            total_allowances=allowances,
-            total_deductions=deductions,
+            total_allowances=component_allowances,
+            total_commission=commission_amount,
+            total_deductions=total_deductions,
+            debt_deductions=debt_total,
+            deducted_expense_ids=json.dumps(expense_ids),
             gross_salary=gross_salary,
             net_salary=net_salary,
             status="draft",
@@ -148,14 +180,21 @@ def pay_payroll(id):
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
 
-    # Create payment record
     try:
+        payment_date_obj = date.fromisoformat(data["payment_date"])
+    except ValueError as e:
+        return jsonify({"error": f"Invalid date format: {str(e)}"}), 400
+
+    pro = payroll.professional
+
+    try:
+        # ── 1. SalaryPayment record ───────────────────────────────────────────
         payment = SalaryPayment(
             payroll_id=id,
             professional_id=payroll.professional_id,
             amount=payroll.net_salary,
             payment_method=data["payment_method"],
-            payment_date=date.fromisoformat(data["payment_date"]),
+            payment_date=payment_date_obj,
             reference_number=data.get("reference_number"),
             bank_name=data.get("bank_name"),
             account_number=data.get("account_number"),
@@ -163,15 +202,43 @@ def pay_payroll(id):
             notes=data.get("notes"),
             processed_by=data.get("processed_by", "System"),
         )
-    except ValueError as e:
-        return jsonify({"error": f"Invalid date format: {str(e)}"}), 400
+        db.session.add(payment)
 
-    # Update payroll status
-    payroll.status = "paid"
-    payroll.payment_date = datetime.now()
+        # ── 2. Mark deducted debt expenses as settled ─────────────────────────
+        expense_ids = json.loads(payroll.deducted_expense_ids or "[]")
+        if expense_ids:
+            debt_records = Expense.query.filter(Expense.id.in_(expense_ids)).all()
+            for exp in debt_records:
+                exp.status      = "paid"
+                exp.paid_amount = exp.amount
+                exp.balance     = 0.0
 
-    db.session.add(payment)
-    db.session.commit()
+        # ── 3. Cash-flow expense (syncs payroll cost into clinic expenses) ─────
+        cash_expense = Expense(
+            category="payroll",
+            description=(
+                f"راتب وعمولة - {pro.first_name} {pro.last_name}"
+                f" - {payroll.payroll_period}"
+            ),
+            amount=payroll.net_salary,
+            paid_amount=payroll.net_salary,
+            balance=0.0,
+            doctor_id=payroll.professional_id,
+            payment_method=data["payment_method"],
+            status="paid",
+            date=payment_date_obj,
+        )
+        db.session.add(cash_expense)
+
+        # ── 4. Finalise payroll ───────────────────────────────────────────────
+        payroll.status       = "paid"
+        payroll.payment_date = datetime.now()
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Payment transaction failed: {str(e)}"}), 500
 
     return jsonify({"payroll": payroll.to_dict(), "payment": payment.to_dict()}), 201
 
@@ -186,6 +253,95 @@ def delete_payroll(id):
     db.session.delete(payroll)
     db.session.commit()
     return "", 204
+
+
+# ── Payslip ──────────────────────────────────────────────────────────────────
+
+
+@payroll_bp.route("/payrolls/<int:id>/payslip", methods=["GET"])
+def get_payslip(id):
+    """Detailed payslip breakdown for PDF generation or printable view."""
+    payroll = Payroll.query.get_or_404(id)
+    salary  = payroll.salary
+    pro     = payroll.professional
+
+    # ── Re-query treatment data for the period ────────────────────────────────
+    try:
+        year, month = [int(x) for x in payroll.payroll_period.split("-")]
+    except (ValueError, AttributeError):
+        year = month = None
+
+    treatments = []
+    treatment_revenue = 0.0
+    if year and month:
+        treatments = (
+            Treatment.query
+            .join(Appointment, Treatment.appointment_id == Appointment.id)
+            .filter(
+                Appointment.dentist_id == payroll.professional_id,
+                extract("year",  Treatment.treatment_date) == year,
+                extract("month", Treatment.treatment_date) == month,
+            )
+            .all()
+        )
+        treatment_revenue = sum(t.cost for t in treatments)
+
+    # ── Salary component breakdown ────────────────────────────────────────────
+    today = date.today()
+    allowance_components  = [
+        c for c in salary.components
+        if c.component_type == "allowance" and c.effective_date <= today
+    ]
+    deduction_components  = [
+        c for c in salary.components
+        if c.component_type == "deduction" and c.effective_date <= today
+    ]
+
+    # ── Deducted debt expenses ────────────────────────────────────────────────
+    expense_ids      = json.loads(payroll.deducted_expense_ids or "[]")
+    deducted_expenses = (
+        Expense.query.filter(Expense.id.in_(expense_ids)).all()
+        if expense_ids else []
+    )
+
+    return jsonify({
+        "payroll_id":   payroll.id,
+        "period":       payroll.payroll_period,
+        "generated_at": str(payroll.created_at),
+        "professional": {
+            "id":        pro.id,
+            "name":      f"{pro.first_name} {pro.last_name}",
+            "specialty": pro.specialty,
+        },
+        "earnings": {
+            "base_salary": payroll.base_salary,
+            "allowances":  [{"name": c.name, "amount": c.amount} for c in allowance_components],
+            "total_allowances": payroll.total_allowances,
+            "commission": {
+                "rate_percentage":  salary.commission_percentage or 0.0,
+                "treatment_count":  len(treatments),
+                "treatment_revenue": treatment_revenue,
+                "commission_amount": payroll.total_commission or 0.0,
+            },
+            "gross_salary": payroll.gross_salary,
+        },
+        "deductions": {
+            "salary_components": [
+                {"name": c.name, "amount": c.amount} for c in deduction_components
+            ],
+            "debt_repayments": [
+                {"id": e.id, "description": e.description, "amount": e.amount}
+                for e in deducted_expenses
+            ],
+            "debt_total":      payroll.debt_deductions or 0.0,
+            "total_deductions": payroll.total_deductions,
+        },
+        "summary": {
+            "net_salary":   payroll.net_salary,
+            "status":       payroll.status,
+            "payment_date": str(payroll.payment_date) if payroll.payment_date else None,
+        },
+    })
 
 
 # Salary Payments CRUD

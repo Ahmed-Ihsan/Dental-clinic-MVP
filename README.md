@@ -1,181 +1,203 @@
-# Dental Clinic Patient Management System MVP
+# 🦷 DentalCare — Dental Clinic Management System
 
-## Description
+A full-featured, Arabic-first dental clinic management system built with **Flask** (backend) and **React + Vite** (frontend). Designed for real clinic workflows with an RTL interface, role-based access, and comprehensive financial tracking.
 
-A web-based patient management system for dental clinics that allows staff to efficiently manage patient records, schedule appointments, and track treatments. The system aims to digitize traditional paper-based processes and improve clinic operations. Built with a modern tech stack including Flask backend and React frontend.
+---
 
-## Features
+## ✨ Features
 
-- **Patient Management**: Register new patients, view and update patient profiles, search patients by name or email
-- **Appointment Scheduling**: Schedule appointments with date and time, track appointment status
-- **Treatment Records**: Record and manage patient treatments with details and costs
-- **Search and Filtering**: Basic search functionality for patients and records
-- **Responsive Web Interface**: Accessible from desktop and mobile devices
+### 🏠 Dashboard
+- Live KPI cards: today's revenue, monthly revenue, outstanding balances, active patients
+- Today's appointment timeline with patient avatars and status badges
+- Smart alerts: overdue bills, tomorrow's appointments, pending doctor advances
+- 7-day revenue vs. expenses area chart
+- Quick action buttons for fast navigation
 
-## Technologies Used
+### 👤 Patient Management
+- Full patient profiles with personal and contact information
+- Patient case sheet with tabbed views:
+  - **Overview** — KPI summary, recent activity
+  - **Medical History** — conditions, diagnoses, notes
+  - **Treatments** — procedure records with cost tracking
+  - **Appointments** — appointment history per patient
+  - **Billing** — per-patient bill list with payment progress
+
+### 📅 Appointment Management
+- Full calendar view with day/week navigation
+- Appointment creation with doctor assignment, time slots, and status tracking
+- Status flow: Scheduled → Confirmed → Completed / Cancelled
+
+### 💰 Billing (محاسبة)
+- Create bills linked to patients and appointments
+- Auto-calculated balance (total − paid)
+- Status tracking: Pending / Paid / Overdue
+- Bill detail modal with edit support
+
+### 💹 Finance Page (merged)
+Two tabs in one page:
+- **Revenue & Profit Analysis** — profitability by treatment category, payment ledger, trend indicators, CSV export
+- **Expense Management** — categorized expense tracking, doctor advance (debt) management, summary KPIs
+
+### 👥 Staff Page (merged)
+Three tabs in one page:
+- **Medical Team** — add/edit/view dental professionals with specialties and contact info
+- **Salaries & Payroll** — salary structures, payroll generation, payment processing
+- **Installments & Advances** — loan/advance management for staff, payment tracking
+
+### 🦷 Quick Visit Wizard
+4-step guided modal for recording a complete visit in one flow:
+1. Select existing patient or register new one
+2. Record treatment type, date, and doctor
+3. Enter billing details with auto-calculated balance and payment breakdown bar
+4. Review all data before saving — creates patient/appointment/treatment/bill in one action
+
+### 📝 Quick Entry Modal
+Global floating modal (top bar) for fast entry of:
+- New patient
+- New appointment
+- New treatment
+
+### 🔍 Typeahead Patient Search
+Top-bar search with debounced patient lookup — press Enter to open the patient's case sheet directly.
+
+---
+
+## 🛠 Tech Stack
 
 ### Backend
-- **Flask**: Python web framework for API development
-- **SQLAlchemy**: ORM for database interactions
-- **Flask-Migrate**: Database migration management with Alembic
-- **Flask-CORS**: Cross-Origin Resource Sharing support
-- **Flask-Login**: User authentication (prepared for future implementation)
-- **SQLite**: Database for MVP (upgradable to PostgreSQL/MySQL)
+| Package | Purpose |
+|---|---|
+| Flask | REST API framework |
+| SQLAlchemy + Flask-Migrate | ORM + database migrations |
+| Flask-CORS | Cross-origin requests |
+| Flask-Login | Session-based authentication |
+| SQLite | Embedded database (upgradable to PostgreSQL) |
 
 ### Frontend
-- **React**: JavaScript library for building user interfaces
-- **Vite**: Fast build tool and development server
-- **Axios**: HTTP client for API requests
-- **React Router DOM**: Routing library for React
-- **Recharts**: Chart library for data visualization
-- **React Icons**: Icon library for UI components
+| Package | Purpose |
+|---|---|
+| React 18 + Vite | UI framework + dev server |
+| React Router v6 | Client-side routing |
+| Axios | HTTP client |
+| Recharts | Revenue/expense area charts |
+| Lucide React | Icon set |
+| react-hot-toast | Toast notifications |
 
-### Testing
-- **pytest**: Testing framework for Python backend
+---
 
-### Development Tools
-- **Git**: Version control system
-- **npm**: Package manager for Node.js
-- **pip**: Package manager for Python
+## 📁 Project Structure
 
-## Installation Instructions
+```
+Dental/
+├── backend/
+│   ├── models/          # SQLAlchemy models
+│   ├── routes/          # Blueprint route handlers
+│   ├── migrations/      # Alembic DB migrations
+│   ├── database.py      # db instance
+│   └── app.py           # Flask app entry point
+└── frontend/
+    └── src/
+        ├── components/
+        │   ├── CaseSheet/       # Patient case sheet tabs
+        │   ├── Expenses/        # Expense dashboard + cards
+        │   ├── Revenue/         # Revenue dashboard + cards
+        │   ├── QuickVisitWizard/# 4-step visit wizard
+        │   ├── FinancePage.jsx  # Revenue + Expenses tabs
+        │   ├── StaffPage.jsx    # Professionals + Salaries + Installments tabs
+        │   └── Dashboard.jsx    # Main dashboard
+        ├── services/api.js      # Axios instance + salary API
+        ├── AuthContext.jsx      # Auth state provider
+        └── App.jsx              # Router + sidebar + top bar
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.8 or higher
-- Node.js and npm
-- Git
+- Python 3.10+
+- Node.js 18+ and npm
 
-### Steps
+### 1 — Clone
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd dental-clinic-mvp
-   ```
+```bash
+git clone https://github.com/<your-username>/Dental.git
+cd Dental
+```
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   python -m venv venv
-   # On Windows:
-   venv\Scripts\activate
-   # On macOS/Linux:
-   # source venv/bin/activate
-   pip install -r requirements.txt
-   flask db upgrade
-   ```
+### 2 — Backend Setup
 
-3. **Frontend Setup**
-   ```bash
-   cd ../frontend
-   npm install
-   ```
+```bash
+cd backend
+python -m venv venv
 
-4. **Run the Application**
-   - **Backend** (in backend directory):
-     ```bash
-     python run.py
-     ```
-   - **Frontend** (in frontend directory):
-     ```bash
-     npm run dev
-     ```
+# Windows
+venv\Scripts\activate
+# macOS / Linux
+source venv/bin/activate
 
-5. **Run Tests**
-   ```bash
-   cd backend
-   pytest
-   ```
+pip install -r requirements.txt
+flask db upgrade
+python app.py
+```
 
-## Usage Guide
+Backend runs at **http://localhost:5000**
 
-1. **Start the Backend**: Run `python run.py` in the backend directory. The API will be available at `http://localhost:5000`.
+### 3 — Frontend Setup
 
-2. **Start the Frontend**: Run `npm run dev` in the frontend directory. Open your browser and navigate to `http://localhost:5173`.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-3. **Managing Patients**:
-   - Use the patient form to add new patients with their personal information
-   - View the patient list to see all registered patients
-   - Search for patients by name or email using the search functionality
-   - Edit or delete patient records as needed
+Frontend runs at **http://localhost:5173**
 
-4. **Scheduling Appointments**:
-   - Create new appointments by selecting a patient and specifying date and time
-   - View upcoming appointments in the appointments section
+---
 
-5. **Recording Treatments**:
-   - Add treatment records for patients with details about procedures performed
-   - Include costs and notes for each treatment
+## 🔌 API Reference
 
-The application provides a user-friendly interface for all dental clinic staff to manage patient data efficiently.
+All endpoints are prefixed with `/api` unless noted.
 
-## API Documentation
+| Resource | Endpoints |
+|---|---|
+| Patients | `GET/POST /patients` · `GET/PUT/DELETE /patients/:id` |
+| Appointments | `GET/POST /appointments` · `GET/PUT/DELETE /appointments/:id` |
+| Treatments | `GET/POST /treatments` · `GET/PUT/DELETE /treatments/:id` |
+| Medical History | `GET/POST /medical-histories` · `PUT/DELETE /medical-histories/:id` |
+| Bills | `GET/POST /bills` · `GET/PUT/DELETE /bills/:id` |
+| Professionals | `GET/POST /professionals` · `GET/PUT/DELETE /professionals/:id` |
+| Salaries | `GET/POST /salaries` · full payroll sub-routes |
+| Payroll | `POST /payrolls/generate` · `POST /payrolls/:id/pay` |
+| Installments | `GET/POST /installments` · payment sub-routes |
+| Expenses | `GET/POST /api/expenses` · `GET /api/expenses/summary` |
+| Revenue | `GET /api/revenue/summary` · `/categories` · `/payments` |
+| Search | `GET /api/search?q=` |
+| Auth | `POST /api/login` · `POST /api/logout` · `GET /api/me` |
 
-The backend provides RESTful API endpoints for managing patients, appointments, and treatments. All endpoints return JSON responses and are prefixed with `/api`.
+---
 
-### Patients Endpoints
-- `GET /api/patients` - List all patients (supports search query parameter)
-- `POST /api/patients` - Create a new patient
-- `GET /api/patients/<id>` - Get specific patient details
-- `PUT /api/patients/<id>` - Update patient information
-- `DELETE /api/patients/<id>` - Delete a patient
+## 🔄 Changelog
 
-### Appointments Endpoints
-- `GET /api/appointments` - List all appointments
-- `POST /api/appointments` - Create a new appointment
-- `GET /api/appointments/<id>` - Get specific appointment details
-- `PUT /api/appointments/<id>` - Update appointment information
-- `DELETE /api/appointments/<id>` - Delete an appointment
+### v2.0.0 — Current
+- Premium SaaS dashboard with live KPIs, smart alerts, and trend chart
+- Patient case sheet with full medical/billing history
+- Finance page: Revenue analytics + Expense management (merged)
+- Staff page: Professionals + Payroll + Installments (merged, 3 tabs)
+- Quick Visit Wizard (4-step guided flow)
+- Quick Entry Modal (global fast entry)
+- Typeahead patient search in top bar
+- Auto-calculated bill balance (server + client side)
+- Legacy route redirects (`/expenses` → `/finance`, etc.)
 
-### Treatments Endpoints
-- `GET /api/treatments` - List all treatments
-- `POST /api/treatments` - Create a new treatment record
-- `GET /api/treatments/<id>` - Get specific treatment details
-- `PUT /api/treatments/<id>` - Update treatment information
-- `DELETE /api/treatments/<id>` - Delete a treatment record
-
-## Contributing Guidelines
-
-We welcome contributions to improve the Dental Clinic Patient Management System! Please follow these guidelines:
-
-1. **Fork the repository** and create your branch from `main`
-2. **Create a feature branch**: `git checkout -b feature/your-feature-name`
-3. **Make your changes** following the existing code style
-4. **Add tests** for new functionality
-5. **Run tests**: `cd backend && pytest`
-6. **Commit your changes**: `git commit -m 'Add some feature'`
-7. **Push to the branch**: `git push origin feature/your-feature-name`
-8. **Open a Pull Request** with a clear description of your changes
-
-### Code Style
-- Follow PEP 8 for Python code
-- Use ESLint rules for JavaScript/React code
-- Write descriptive commit messages
-- Add comments for complex logic
-
-## License Information
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contact Information
-
-For questions or support, please open an issue on GitHub or contact the development team.
-
-## Acknowledgments
-
-- Thanks to the Flask, React, and SQLAlchemy communities for their excellent frameworks and libraries
-- Special thanks to all contributors and the open-source community
-
-## Changelog
-
-### v1.0.0 - Initial MVP Release
+### v1.0.0 — Initial MVP
 - Patient registration and management
 - Appointment scheduling
 - Treatment record tracking
-- Basic search functionality
-- Responsive web interface
-- RESTful API backend
+- Basic REST API
 
-## Screenshots
+---
 
-Screenshots of the application will be added here once the UI is finalized.
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.

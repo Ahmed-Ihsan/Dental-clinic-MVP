@@ -9,6 +9,8 @@ class Bill(db.Model):
     appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"))
     total_amount = db.Column(db.Float, nullable=False)
     paid_amount = db.Column(db.Float, default=0.0)
+    discount_amount = db.Column(db.Float, default=0.0)
+    direct_cost = db.Column(db.Float, default=0.0)
     balance = db.Column(db.Float, nullable=False)
     due_date = db.Column(db.Date)
     status = db.Column(db.String(20), default="unpaid")
@@ -29,6 +31,8 @@ class Bill(db.Model):
             "appointment_id": self.appointment_id,
             "total_amount": self.total_amount,
             "paid_amount": self.paid_amount,
+            "discount_amount": self.discount_amount,
+            "direct_cost": self.direct_cost,
             "balance": self.balance,
             "due_date": str(self.due_date) if self.due_date else None,
             "status": self.status,

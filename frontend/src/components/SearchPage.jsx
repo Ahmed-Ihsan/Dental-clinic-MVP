@@ -70,7 +70,7 @@ const SearchPage = () => {
       treatment: `/treatments`,
       medical_history: `/medical-histories`,
       bill: `/bills`,
-      professional: `/professionals`
+      professional: `/staff`
     };
     return links[item.type] || '/';
   };

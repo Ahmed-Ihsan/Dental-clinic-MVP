@@ -31,36 +31,41 @@ def create_salary():
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
 
+    # Validate and coerce all values BEFORE touching any existing records
+    try:
+        professional_id = int(data["professional_id"])
+        base_salary = float(data["base_salary"])
+        effective_date = date.fromisoformat(data["effective_date"])
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": f"Invalid value: {str(e)}"}), 400
+
+    if base_salary <= 0:
+        return jsonify({"error": "Base salary must be positive"}), 400
+
     # Check if professional exists
-    professional = Professional.query.get(data["professional_id"])
+    professional = Professional.query.get(professional_id)
     if not professional:
         return jsonify({"error": "Professional not found"}), 404
 
-    # Check if there's already an active salary for this professional
+    # Deactivate any existing active salary for this professional
     existing_active = Salary.query.filter(
-        Salary.professional_id == data["professional_id"], Salary.is_active == True
+        Salary.professional_id == professional_id, Salary.is_active == True
     ).first()
-
     if existing_active:
-        # End the existing salary
-        existing_active.end_date = date.fromisoformat(data["effective_date"])
+        existing_active.end_date = effective_date
         existing_active.is_active = False
 
-    try:
-        salary = Salary(
-            professional_id=data["professional_id"],
-            base_salary=data["base_salary"],
-            currency=data.get("currency", "SAR"),
-            salary_type=data.get("salary_type", "monthly"),
-            effective_date=date.fromisoformat(data["effective_date"]),
-            end_date=date.fromisoformat(data["end_date"])
-            if data.get("end_date")
-            else None,
-            is_active=data.get("is_active", True),
-            notes=data.get("notes"),
-        )
-    except ValueError as e:
-        return jsonify({"error": f"Invalid date format: {str(e)}"}), 400
+    salary = Salary(
+        professional_id=professional_id,
+        base_salary=base_salary,
+        currency=data.get("currency", "SAR"),
+        salary_type=data.get("salary_type", "monthly"),
+        effective_date=effective_date,
+        end_date=date.fromisoformat(data["end_date"]) if data.get("end_date") else None,
+        is_active=data.get("is_active", True),
+        commission_percentage=float(data.get("commission_percentage") or 0.0),
+        notes=data.get("notes"),
+    )
 
     db.session.add(salary)
     db.session.commit()
@@ -86,10 +91,16 @@ def update_salary(id):
             ), 400
 
     for key, value in data.items():
-        if key == "effective_date" and value:
-            setattr(salary, key, date.fromisoformat(value))
+        if key == "effective_date":
+            if value:  # skip empty strings to avoid fromisoformat crash
+                try:
+                    setattr(salary, key, date.fromisoformat(value))
+                except ValueError:
+                    return jsonify({"error": f"Invalid effective_date: {value}"}), 400
         elif key == "end_date":
             setattr(salary, key, date.fromisoformat(value) if value else None)
+        elif key == "base_salary" and value is not None:
+            setattr(salary, key, float(value))
         elif hasattr(salary, key):
             setattr(salary, key, value)
 

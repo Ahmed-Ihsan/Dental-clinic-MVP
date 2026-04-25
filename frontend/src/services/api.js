@@ -48,6 +48,14 @@ deleteInstallmentPayment: (id) => api.delete(`/installment-payments/${id}`),
 getInstallmentAnalytics: (params = {}) => api.get('/installments/analytics', { params }),
 getOverdueInstallments: () => api.get('/installments/overdue'),
 processAutoInstallments: () => api.post('/installments/process-auto'),
+
+  // Expenses
+  getExpenses: (params = {}) => api.get('/expenses', { params }),
+  getExpense: (id) => api.get(`/expenses/${id}`),
+  createExpense: (data) => api.post('/expenses', data),
+  updateExpense: (id, data) => api.put(`/expenses/${id}`, data),
+  deleteExpense: (id) => api.delete(`/expenses/${id}`),
+  getExpensesSummary: (params = {}) => api.get('/expenses/summary', { params }),
 };
 
 export default api;

@@ -12,7 +12,12 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 db.init_app(app)
 migrate = Migrate(app, db)
-CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
+CORS(
+    app,
+    origins=["http://localhost:5173", "http://localhost:5174"],
+    supports_credentials=True,
+    resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:5174"]}},
+)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
@@ -32,6 +37,7 @@ from models import (
     SalaryPayment,
     PaymentInstallment,
     InstallmentPayment,
+    Expense,
 )
 
 with app.app_context():
@@ -47,6 +53,8 @@ from routes.search_routes import search_bp
 from routes.salary_routes import salary_bp
 from routes.payroll_routes import payroll_bp
 from routes.installment_routes import installment_bp
+from routes.revenue_routes import revenue_bp
+from routes.expense_routes import expense_bp
 
 app.register_blueprint(patient_bp, url_prefix="/api")
 app.register_blueprint(appointment_bp, url_prefix="/api")
@@ -59,6 +67,8 @@ app.register_blueprint(search_bp, url_prefix="/api")
 app.register_blueprint(salary_bp, url_prefix="/api")
 app.register_blueprint(payroll_bp, url_prefix="/api")
 app.register_blueprint(installment_bp, url_prefix="/api")
+app.register_blueprint(revenue_bp)
+app.register_blueprint(expense_bp)
 
 
 @login_manager.user_loader

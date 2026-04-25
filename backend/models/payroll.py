@@ -15,7 +15,10 @@ class Payroll(db.Model):
     # Salary breakdown
     base_salary = db.Column(db.Float, nullable=False)
     total_allowances = db.Column(db.Float, default=0.0)
+    total_commission = db.Column(db.Float, default=0.0)   # Revenue-share commission
     total_deductions = db.Column(db.Float, default=0.0)
+    debt_deductions = db.Column(db.Float, default=0.0)    # Portion that cleared debts
+    deducted_expense_ids = db.Column(db.Text, default="[]")  # JSON list of Expense.id cleared
     gross_salary = db.Column(db.Float, nullable=False)
     net_salary = db.Column(db.Float, nullable=False)
 
@@ -67,7 +70,10 @@ class Payroll(db.Model):
             "salary_id": self.salary_id,
             "base_salary": self.base_salary,
             "total_allowances": self.total_allowances,
+            "total_commission": self.total_commission or 0.0,
             "total_deductions": self.total_deductions,
+            "debt_deductions": self.debt_deductions or 0.0,
+            "deducted_expense_ids": self.deducted_expense_ids or "[]",
             "gross_salary": self.gross_salary,
             "net_salary": self.net_salary,
             "working_days": self.working_days,

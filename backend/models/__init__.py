@@ -13,6 +13,7 @@ from .payroll import Payroll
 from .salary_payment import SalaryPayment
 from .payment_installment import PaymentInstallment
 from .installment_payment import InstallmentPayment
+from .expense import Expense
 
 __all__ = [
     "Patient",
@@ -30,4 +31,5 @@ __all__ = [
     "SalaryPayment",
     "PaymentInstallment",
     "InstallmentPayment",
+    "Expense",
 ]

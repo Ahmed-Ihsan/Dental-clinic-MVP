@@ -22,12 +22,21 @@ def create_bill():
     due_date = None
     if data.get("due_date"):
         due_date = date.fromisoformat(data["due_date"])
+    total_amount    = float(data["total_amount"])
+    paid_amount     = float(data.get("paid_amount", 0.0))
+    discount_amount = float(data.get("discount_amount", 0.0))
+    balance         = data.get("balance")
+    if balance is None:
+        balance = total_amount - paid_amount - discount_amount
+
     new_bill = Bill(
         patient_id=data["patient_id"],
         appointment_id=data.get("appointment_id"),
-        total_amount=data["total_amount"],
-        paid_amount=data.get("paid_amount", 0.0),
-        balance=data["balance"],
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        discount_amount=discount_amount,
+        direct_cost=float(data.get("direct_cost", 0.0)),
+        balance=balance,
         due_date=due_date,
         status=data.get("status", "pending"),
     )

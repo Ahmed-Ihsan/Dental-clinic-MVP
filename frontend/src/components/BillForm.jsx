@@ -3,7 +3,7 @@ import api from '../services/api';
 
 const BillForm = ({ onSave }) => {
   const empty = {
-    patient_id: '', appointment_id: '', total_amount: '', paid_amount: 0.0, balance: '', due_date: '', status: 'pending'
+    patient_id: '', appointment_id: '', total_amount: '', paid_amount: 0.0, due_date: '', status: 'pending'
   };
   const [form, setForm] = useState(empty);
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,9 @@ const BillForm = ({ onSave }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = { ...form, total_amount: parseFloat(form.total_amount), paid_amount: parseFloat(form.paid_amount), balance: parseFloat(form.balance) };
+      const total   = parseFloat(form.total_amount) || 0;
+      const paid    = parseFloat(form.paid_amount)   || 0;
+      const data = { ...form, total_amount: total, paid_amount: paid, balance: total - paid };
       await api.post('/bills', data);
       setSuccess(true);
       setForm(empty);
@@ -96,8 +98,10 @@ const BillForm = ({ onSave }) => {
         </div>
 
         <div className="field-group">
-          <label className="field-label">المبلغ المتبقي *</label>
-          <input name="balance" value={form.balance} onChange={handleChange} type="number" step="0.01" min="0" placeholder="0.00 IQD" required className="field-input" />
+          <label className="field-label">الرصيد المحسوب</label>
+          <div className="field-input" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', cursor: 'default', display: 'flex', alignItems: 'center' }}>
+            {((parseFloat(form.total_amount) || 0) - (parseFloat(form.paid_amount) || 0)).toLocaleString('ar-SA')} ر.س
+          </div>
         </div>
 
         <div className="field-group">

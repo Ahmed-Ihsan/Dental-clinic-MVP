@@ -14,6 +14,7 @@ class Salary(db.Model):
     effective_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)  # Null for current salary
     is_active = db.Column(db.Boolean, default=True)
+    commission_percentage = db.Column(db.Float, default=0.0)  # % of treatment revenue
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(
@@ -48,6 +49,7 @@ class Salary(db.Model):
             "effective_date": str(self.effective_date),
             "end_date": str(self.end_date) if self.end_date else None,
             "is_active": self.is_active,
+            "commission_percentage": self.commission_percentage or 0.0,
             "notes": self.notes,
             "total_allowances": sum(
                 c.amount for c in self.components if c.component_type == "allowance"
