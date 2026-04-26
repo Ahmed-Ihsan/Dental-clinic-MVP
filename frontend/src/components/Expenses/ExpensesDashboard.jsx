@@ -5,7 +5,7 @@ import AddExpenseModal   from './AddExpenseModal';
 import api from '../../services/api';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
-const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} ر.س`;
+const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} IQD`;
 const fmtDate     = (d) => d ? new Date(d).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
 const doctorName = (id, professionals) => {

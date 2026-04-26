@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCaseSheetData } from './useCaseSheetData';
-import PatientHeader      from './PatientHeader';
-import CaseSheetTabs      from './CaseSheetTabs';
-import CaseSheetSkeleton  from './CaseSheetSkeleton';
-import OverviewTab        from './OverviewTab';
-import MedicalHistoryTab  from './MedicalHistoryTab';
-import TreatmentsTab      from './TreatmentsTab';
-import AppointmentsTab    from './AppointmentsTab';
-import BillingTab         from './BillingTab';
+import PatientHeader        from './PatientHeader';
+import CaseSheetTabs        from './CaseSheetTabs';
+import CaseSheetSkeleton    from './CaseSheetSkeleton';
+import OverviewTab          from './OverviewTab';
+import MedicalHistoryTab    from './MedicalHistoryTab';
+import TreatmentsTab        from './TreatmentsTab';
+import AppointmentsTab      from './AppointmentsTab';
+import BillingTab           from './BillingTab';
+import DentalChartTab       from './DentalChartTab';
 import '../../styles/casesheet.css';
 
 export default function PatientCaseSheet() {
@@ -113,6 +114,10 @@ export default function PatientCaseSheet() {
 
           {activeTab === 'billing' && (
             <BillingTab bills={bills} onAdd={addBill} />
+          )}
+
+          {activeTab === 'dental-chart' && (
+            <DentalChartTab patientId={patientId} />
           )}
         </div>
       </div>

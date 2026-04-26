@@ -10,7 +10,7 @@ import api from '../services/api';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
-const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} ر.س`;
+const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} IQD`;
 
 const localToday = () => {
   const d = new Date();
@@ -104,7 +104,7 @@ function SetSalaryModal({ professional, existingSalary, onClose, onSave }) {
 
         <form onSubmit={submit} className="sp-modal-body">
           <div className="field-group">
-            <label className="field-label">الراتب الأساسي (ر.س) *</label>
+            <label className="field-label">الراتب الأساسي (IQD) *</label>
             <input
               type="number" name="base_salary" value={form.base_salary}
               onChange={change} className="field-input"

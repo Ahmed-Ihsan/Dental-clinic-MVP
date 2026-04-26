@@ -5,10 +5,10 @@
  *   value    — numeric or string value to display
  *   icon     — emoji / SVG element
  *   variant  — 'primary' | 'success' | 'danger' | 'warning' | 'accent'
- *   unit     — optional unit suffix (e.g. 'ر.س')
+ *   unit     — optional unit suffix (e.g. 'IQD')
  *   sub      — optional subtitle / caption
  */
-export default function ExpenseStatCard({ label, value, icon, variant = 'primary', unit = 'ر.س', sub }) {
+export default function ExpenseStatCard({ label, value, icon, variant = 'primary', unit = 'IQD', sub }) {
   const fmt = (v) => {
     if (typeof v === 'number') return v.toLocaleString('ar-SA');
     return v;

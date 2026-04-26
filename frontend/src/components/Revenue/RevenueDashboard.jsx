@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import RevenueStatCard from './RevenueStatCard';
 import RevenueTable from './RevenueTable';
+import QuickPaymentModal from './QuickPaymentModal';
 import api from '../../services/api';
 
-const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} ر.س`;
+const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} IQD`;
 const fmtDate = (d) =>
   d
     ? new Date(d).toLocaleDateString('ar-SA', {
@@ -87,9 +89,11 @@ function RevenueProfitabilityTab({ categories }) {
     {
       key: 'net_profit',
       label: 'صافي الربح',
-      render: (v) => (
-        <span className="rev-net-profit">{fmtCurrency(v)}</span>
-      ),
+      // FIX: Dynamically calculate profit based on payments and margin %
+      render: (v, row) => {
+        const actualProfit = row.total_payments * (row.profit_margin_percent / 100);
+        return <span className="rev-net-profit">{fmtCurrency(actualProfit)}</span>;
+      },
     },
     {
       key: 'trend',
@@ -102,15 +106,9 @@ function RevenueProfitabilityTab({ categories }) {
       ),
     },
   ];
-
+  // FIX: Removed the redundant `<div className="rev-tab-header">`
   return (
     <div>
-      <div className="rev-tab-header">
-        <h3 className="rev-tab-title">📊 تحليل الإيرادات والأرباح</h3>
-        <span className="rev-tab-desc">
-          تحليل مالي تفصيلي مقسّم حسب فئة العلاج — المدفوعات، المديونيات، وهوامش الربح
-        </span>
-      </div>
       <RevenueTable
         columns={columns}
         rows={categories}
@@ -222,6 +220,7 @@ export default function RevenueDashboard() {
   const [search, setSearch] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [qpmOpen, setQpmOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -247,6 +246,11 @@ export default function RevenueDashboard() {
   }, [fromDate, toDate]);
 
   useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleQpmSuccess = useCallback(() => {
+    toast.success('تم تسجيل الإيراد بنجاح وتحديث البيانات');
     fetchData();
   }, [fetchData]);
 
@@ -289,11 +293,13 @@ export default function RevenueDashboard() {
         trendNet: { value: '+0%', up: true },
       };
     }
+    // FIX: Calculate the actual total net profit using total paid and the overall margin
+    const calculatedTotalNetProfit = summary.total_paid * ((summary.profit_margin_percent || 0) / 100);
     return {
       totalCases: summary.cases_count || 0,
       totalPayments: summary.total_paid || 0,
       totalDebts: summary.total_balance || 0,
-      totalNetProfit: summary.total_net_profit || 0,
+      totalNetProfit: calculatedTotalNetProfit, // Use the fixed calculation here
       overallMargin: summary.profit_margin_percent || 0,
       trendPayments: summary.trends?.paid || { value: '+0%', up: true },
       trendDebts: summary.trends?.balance || { value: '-0%', up: false },
@@ -454,6 +460,16 @@ export default function RevenueDashboard() {
           <span>📤</span>
           <span>تصدير</span>
         </button>
+
+        <button
+          id="rev-quick-payment-btn"
+          className="btn btn-primary"
+          onClick={() => setQpmOpen(true)}
+          style={{ gap: 6, whiteSpace: 'nowrap' }}
+        >
+          <span>➕</span>
+          <span>تسجيل إيراد سريع</span>
+        </button>
       </div>
 
       <div className="rev-card animate-in animate-in-delay-3">
@@ -483,6 +499,12 @@ export default function RevenueDashboard() {
           )}
         </div>
       </div>
+
+      <QuickPaymentModal
+        isOpen={qpmOpen}
+        onClose={() => setQpmOpen(false)}
+        onSuccess={handleQpmSuccess}
+      />
     </div>
   );
 }

@@ -7,7 +7,7 @@ function formatDate(d) {
 
 function formatCurrency(n) {
   if (n == null) return '—';
-  return `${Number(n).toLocaleString('ar-EG')} ر.س`;
+  return `${Number(n).toLocaleString('ar-EG')} IQD`;
 }
 
 function StatusBadge({ status }) {

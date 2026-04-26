@@ -5,7 +5,7 @@
  *   value    — numeric or string value to display
  *   icon     — emoji element
  *   variant  — 'primary' | 'success' | 'danger' | 'warning' | 'accent' | 'info'
- *   unit     — optional unit suffix (e.g. 'ر.س' or '%')
+ *   unit     — optional unit suffix (e.g. 'IQD' or '%')
  *   sub      — optional subtitle / caption
  *   trend    — optional trend string (e.g. '+12%')
  *   trendUp  — boolean, determines arrow color
@@ -15,7 +15,7 @@ export default function RevenueStatCard({
   value,
   icon,
   variant = 'primary',
-  unit = 'ر.س',
+  unit = 'IQD',
   sub,
   trend,
   trendUp,

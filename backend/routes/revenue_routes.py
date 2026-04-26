@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request
 from sqlalchemy import func
-from models import Treatment, Bill, Patient
+from models import Treatment, Bill, Patient, Appointment
 from database import db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 
 revenue_bp = Blueprint("revenue", __name__)
 
@@ -26,6 +26,82 @@ def _apply_date_filter(query, start_date, end_date_filter):
     if end_date_filter:
         query = query.filter(eff < end_date_filter)
     return query
+
+
+@revenue_bp.route("/api/revenue/quick-payment", methods=["POST"])
+def quick_payment():
+    data = request.get_json()
+
+    patient_id     = data.get("patient_id")
+    treatment_type = (data.get("treatment_type") or "").strip()
+    total_cost     = float(data.get("total_cost")  or 0)
+    paid_amount    = float(data.get("paid_amount") or 0)
+
+    if not patient_id:
+        return jsonify({"error": "معرّف المريض مطلوب"}), 400
+    if not treatment_type:
+        return jsonify({"error": "فئة العلاج مطلوبة"}), 400
+    if total_cost <= 0:
+        return jsonify({"error": "التكلفة الإجمالية يجب أن تكون أكبر من صفر"}), 400
+    if paid_amount < 0 or paid_amount > total_cost:
+        return jsonify({"error": "المبلغ المدفوع غير صالح"}), 400
+
+    if not Patient.query.get(patient_id):
+        return jsonify({"error": "المريض غير موجود"}), 404
+
+    today = date.today()
+
+    # 1 ── Create a completed appointment (the shared link between Treatment & Bill)
+    appt = Appointment(
+        patient_id=patient_id,
+        appointment_date=today,
+        start_time=time(9, 0),
+        end_time=time(9, 30),
+        status="completed",
+        notes="إيراد سريع",
+    )
+    db.session.add(appt)
+    db.session.flush()          # get appt.id before commit
+
+    # 2 ── Create treatment with the correct category → drives revenue categorisation
+    treatment = Treatment(
+        patient_id=patient_id,
+        appointment_id=appt.id,
+        treatment_type=treatment_type,
+        cost=total_cost,
+        treatment_date=today,
+        notes="إيراد سريع",
+    )
+    db.session.add(treatment)
+
+    # 3 ── Create bill linked to the same appointment_id
+    balance = max(0.0, total_cost - paid_amount)
+    if paid_amount <= 0:
+        status = "unpaid"
+    elif balance <= 0:
+        status = "paid"
+    else:
+        status = "partial"
+
+    bill = Bill(
+        patient_id=patient_id,
+        appointment_id=appt.id,
+        total_amount=total_cost,
+        paid_amount=paid_amount,
+        discount_amount=0.0,
+        direct_cost=total_cost,
+        balance=balance,
+        status=status,
+    )
+    db.session.add(bill)
+    db.session.commit()
+
+    return jsonify({
+        "appointment_id": appt.id,
+        "treatment_id":   treatment.id,
+        "bill_id":        bill.id,
+        "message":        "تم تسجيل الإيراد بنجاح",
+    }), 201
 
 
 @revenue_bp.route("/api/revenue/summary", methods=["GET"])

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronRight, ChevronLeft, Calendar, Plus, X, Clock, User, Stethoscope } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -87,7 +87,7 @@ function AppointmentChip({ apt, onClick }) {
 
 // ─── DayCell ──────────────────────────────────────────────────────────────────
 
-function DayCell({ cell, byDate, today, onChipClick, onCellClick }) {
+function DayCell({ cell, byDate, today, onChipClick, onCellClick, onMoreClick }) {
   const key     = dateKey(cell.year, cell.month, cell.day);
   const isToday = key === today;
   const apts    = byDate[key] || [];
@@ -119,7 +119,7 @@ function DayCell({ cell, byDate, today, onChipClick, onCellClick }) {
           <button
             type="button"
             className="cal-chip-more"
-            onClick={e => { e.stopPropagation(); onChipClick(apts[MAX_CHIPS]); }}
+            onClick={e => { e.stopPropagation(); onMoreClick(key); }}
           >
             <Plus size={10} /> {apts.length - MAX_CHIPS} أكثر
           </button>
@@ -136,6 +136,101 @@ function DayCell({ cell, byDate, today, onChipClick, onCellClick }) {
   );
 }
 
+// ─── DayListModal ──────────────────────────────────────────────────────
+
+function DayListModal({ date, appointments, onClose, onAddNew, onSelectApt }) {
+  const [y, m, d] = date.split('-');
+  const displayDate = `${d} ${MONTHS_AR[parseInt(m, 10) - 1]} ${y}`;
+
+  return (
+    <div className="cal-modal-overlay" onClick={onClose}>
+      <div className="cal-modal-box cal-daylist-box" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="cal-modal-header">
+          <div className="cal-modal-title">
+            <div className="cal-modal-icon"><Calendar size={16} /></div>
+            <div>
+              <div className="cal-modal-heading">{displayDate}</div>
+              <div className="cal-modal-subheading">
+                {appointments.length > 0 ? `${appointments.length} موعد مسجّل` : 'لا توجد مواعيد'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onAddNew}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '7px 14px' }}
+            >
+              <Plus size={14} /> موعد جديد
+            </button>
+            <button className="cal-modal-close" onClick={onClose} type="button">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="cal-daylist-body">
+          {appointments.length === 0 ? (
+            <div className="cal-daylist-empty">
+              <Calendar size={34} style={{ opacity: 0.25, marginBottom: 10 }} />
+              <p>لا توجد مواعيد في هذا اليوم</p>
+              <p style={{ fontSize: 12, marginTop: 4 }}>اضغط على "موعد جديد" لإضافة أول موعد</p>
+            </div>
+          ) : (
+            <div className="cal-daylist-items">
+              {appointments.map(apt => {
+                const cfg = STATUS_CONFIG[apt.status] || STATUS_CONFIG.scheduled;
+                return (
+                  <button
+                    key={apt.id}
+                    type="button"
+                    className="cal-daylist-item"
+                    onClick={() => onSelectApt(apt)}
+                    style={{ '--item-dot': cfg.dot }}
+                  >
+                    <div className="cal-daylist-time">
+                      <Clock size={12} />
+                      <span>{apt.start_time}</span>
+                      {apt.end_time && (
+                        <><span className="cal-daylist-sep">—</span><span>{apt.end_time}</span></>
+                      )}
+                    </div>
+                    <div className="cal-daylist-info">
+                      <div className="cal-daylist-patient">
+                        <User size={12} style={{ opacity: 0.6, flexShrink: 0 }} />
+                        <span>{apt.patientName}</span>
+                      </div>
+                      {apt.doctorName && apt.doctorName !== 'غير محدد' && (
+                        <div className="cal-daylist-doctor">
+                          <Stethoscope size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
+                          <span>{apt.doctorName}</span>
+                        </div>
+                      )}
+                      {apt.notes && (
+                        <div className="cal-daylist-notes">{apt.notes}</div>
+                      )}
+                    </div>
+                    <div
+                      className="cal-daylist-badge"
+                      style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+                    >
+                      {cfg.label}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── NewAppointmentModal ──────────────────────────────────────────────────────
 
 function NewAppointmentModal({ date, patients, professionals, onClose, onSave }) {
@@ -145,6 +240,46 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
     dentist_id: '', status: 'scheduled', notes: '',
   });
   const [loading, setLoading] = useState(false);
+
+  /* ── Patient typeahead (filters the already-fetched patients prop) ── */
+  const [patientQuery,    setPatientQuery]    = useState('');
+  const [patientResults,  setPatientResults]  = useState([]);
+  const [showDrop,        setShowDrop]        = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+
+  const wrapRef = useRef();
+  const debRef  = useRef();
+
+  useEffect(() => {
+    const h = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setShowDrop(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const searchPatients = q => {
+    if (!q.trim()) { setPatientResults([]); setShowDrop(false); return; }
+    const r = patients
+      .filter(p => `${p.first_name} ${p.last_name} ${p.phone || ''}`.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 7);
+    setPatientResults(r);
+    setShowDrop(r.length > 0);
+  };
+
+  const handlePatientQuery = e => {
+    const v = e.target.value;
+    setPatientQuery(v);
+    setSelectedPatient(null);
+    setForm(f => ({ ...f, patient_id: '' }));
+    clearTimeout(debRef.current);
+    debRef.current = setTimeout(() => searchPatients(v), 180);
+  };
+
+  const selectPatient = p => {
+    setSelectedPatient(p);
+    setPatientQuery(`${p.first_name} ${p.last_name}`);
+    setShowDrop(false);
+    setForm(f => ({ ...f, patient_id: p.id }));
+  };
 
   const change = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -166,7 +301,6 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
     }
   };
 
-  // Format the date for display
   const [y, m, d] = date.split('-');
   const displayDate = `${d} ${MONTHS_AR[parseInt(m, 10) - 1]} ${y}`;
 
@@ -190,19 +324,65 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
         {/* Form */}
         <form onSubmit={submit} className="cal-modal-body">
           <div className="cal-form-grid">
-            {/* Patient */}
-            <div className="field-group">
-              <label className="field-label">
+
+            {/* ── Patient Typeahead (full width) ── */}
+            <div className="field-group cal-form-full" ref={wrapRef} style={{ position: 'relative' }}>
+              <label className="field-label" htmlFor="cal-patient-input">
                 <User size={12} style={{ display: 'inline', marginLeft: 4 }} />
                 المريض *
               </label>
-              <select name="patient_id" value={form.patient_id} onChange={change}
-                className="field-input" required>
-                <option value="">اختر مريضاً...</option>
-                {patients.map(p => (
-                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
-                ))}
-              </select>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="cal-patient-input"
+                  type="text"
+                  className="field-input"
+                  placeholder="ابحث عن مريض بالاسم أو الهاتف..."
+                  value={patientQuery}
+                  onChange={handlePatientQuery}
+                  onFocus={() => { if (patientResults.length > 0) setShowDrop(true); }}
+                  autoComplete="off"
+                  aria-label="بحث عن مريض"
+                  aria-expanded={showDrop}
+                  aria-autocomplete="list"
+                  style={selectedPatient ? { borderColor: 'var(--success)' } : {}}
+                />
+                {selectedPatient && (
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--success)', fontWeight: 700 }}>✓</span>
+                )}
+              </div>
+              {showDrop && (
+                <div
+                  role="listbox"
+                  aria-label="نتائج البحث"
+                  style={{
+                    position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0,
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-hover)',
+                    borderRadius: 'var(--radius-md)', zIndex: 300, overflow: 'hidden',
+                    boxShadow: 'var(--shadow-lg)',
+                  }}>
+                  {patientResults.map(p => (
+                    <div
+                      key={p.id}
+                      role="option"
+                      aria-selected="false"
+                      onMouseDown={() => selectPatient(p)}
+                      style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card-hover)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', background: 'var(--primary-light)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, color: 'var(--primary)', flexShrink: 0,
+                      }}>{p.first_name?.[0]}{p.last_name?.[0]}</div>
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{p.first_name} {p.last_name}</div>
+                        {p.phone && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>📞 {p.phone}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Doctor */}
@@ -211,8 +391,7 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
                 <Stethoscope size={12} style={{ display: 'inline', marginLeft: 4 }} />
                 الطبيب
               </label>
-              <select name="dentist_id" value={form.dentist_id} onChange={change}
-                className="field-input">
+              <select name="dentist_id" value={form.dentist_id} onChange={change} className="field-input">
                 <option value="">اختر طبيباً...</option>
                 {professionals.map(p => (
                   <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
@@ -237,8 +416,7 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
             {/* Status */}
             <div className="field-group">
               <label className="field-label">الحالة</label>
-              <select name="status" value={form.status} onChange={change}
-                className="field-input">
+              <select name="status" value={form.status} onChange={change} className="field-input">
                 <option value="scheduled">مجدول</option>
                 <option value="confirmed">مؤكد</option>
               </select>
@@ -251,10 +429,11 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
                 rows={2} className="field-input"
                 placeholder="ملاحظات اختيارية..." />
             </div>
+
           </div>
 
           <div className="cal-modal-actions">
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button type="submit" className="btn btn-primary" disabled={loading || !selectedPatient}>
               {loading ? 'جاري الحفظ...' : 'إضافة الموعد'}
             </button>
             <button type="button" className="btn btn-secondary" onClick={onClose}>
@@ -278,8 +457,9 @@ export default function AppointmentsCalendar() {
   const [patients,    setPatients]    = useState([]);
   const [professionals, setProfessionals] = useState([]);
   const [loading,     setLoading]     = useState(true);
-  const [selectedApt, setSelectedApt] = useState(null);  // detail modal
-  const [newAptDate,  setNewAptDate]  = useState(null);  // create modal
+  const [selectedApt,    setSelectedApt]    = useState(null);  // detail modal
+  const [newAptDate,     setNewAptDate]     = useState(null);  // create modal
+  const [selectedDayList, setSelectedDayList] = useState(null); // day list modal
   const [statusFilter, setStatusFilter] = useState('all');
   const [refresh,     setRefresh]     = useState(0);
 
@@ -348,6 +528,16 @@ export default function AppointmentsCalendar() {
     return map;
   }, [enriched, statusFilter]);
 
+  // ── Cell click: show day list if appointments exist, else open new modal directly
+  const handleCellClick = useCallback((key) => {
+    const dayApts = byDate[key] || [];
+    if (dayApts.length > 0) {
+      setSelectedDayList(key);
+    } else {
+      setNewAptDate(key);
+    }
+  }, [byDate]);
+
   // ── Calendar grid ─────────────────────────────────────────────────────────────
 
   const cells = useMemo(() => buildGrid(viewDate.year, viewDate.month), [viewDate]);
@@ -408,7 +598,7 @@ export default function AppointmentsCalendar() {
             <Calendar size={22} style={{ display: 'inline', marginLeft: 8, verticalAlign: 'middle' }} />
             إدارة المواعيد
           </h1>
-          <p className="page-header-subtitle">تقويم شهري تفاعلي — اضغط على أي يوم لإضافة موعد</p>
+          <p className="page-header-subtitle">تقويم شهري تفاعلي — اضغط على أي يوم لعرض مواعيده وإضافة جديد</p>
         </div>
       </div>
 
@@ -488,11 +678,23 @@ export default function AppointmentsCalendar() {
               byDate={byDate}
               today={today}
               onChipClick={setSelectedApt}
-              onCellClick={setNewAptDate}
+              onCellClick={handleCellClick}
+              onMoreClick={key => setSelectedDayList(key)}
             />
           ))}
         </div>
       </div>
+
+      {/* ── Day List Modal ────────────────────────────────────────────── */}
+      {selectedDayList && (
+        <DayListModal
+          date={selectedDayList}
+          appointments={byDate[selectedDayList] || []}
+          onClose={() => setSelectedDayList(null)}
+          onAddNew={() => { setSelectedDayList(null); setNewAptDate(selectedDayList); }}
+          onSelectApt={apt => { setSelectedDayList(null); setSelectedApt(apt); }}
+        />
+      )}
 
       {/* ── Detail Modal ─────────────────────────────────────────────────────── */}
       {selectedApt && (

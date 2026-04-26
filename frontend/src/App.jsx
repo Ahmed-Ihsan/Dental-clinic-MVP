@@ -10,6 +10,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './AuthContext';
+import { useTheme } from './ThemeContext';
 import api from './services/api';
 
 import Dashboard            from './components/Dashboard.jsx';
@@ -234,9 +235,9 @@ function TypeaheadSearch() {
    ══════════════════════════════════════════════════════════════════════════ */
 function TopBar({ onQuickEntry, onQuickVisit }) {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const current  = navItems.find(n => n.path === location.pathname);
 
-  // Derive title for patient case-sheet
   const isCaseSheet = location.pathname.includes('/case-sheet');
   const pageTitle   = isCaseSheet ? 'ملف المريض' : (current?.title || 'DentalCare');
 
@@ -270,6 +271,16 @@ function TopBar({ onQuickEntry, onQuickVisit }) {
           <span className="tb-quick-label">إدخال سريع</span>
         </button>
 
+        {/* Theme toggle */}
+        <button
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'تبديل إلى الوضع الفاتح' : 'تبديل إلى الوضع الداكن'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
         <span className="top-bar-badge">النظام نشط</span>
       </div>
     </header>
@@ -290,17 +301,17 @@ function AppShell() {
         toastOptions={{
           duration: 3500,
           style: {
-            background: '#1C2438',
-            color: '#F1F5F9',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-hover)',
             borderRadius: '12px',
             fontFamily: 'Cairo, Tajawal, sans-serif',
             fontSize: '14px',
             direction: 'rtl',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--shadow-lg)',
           },
-          success: { iconTheme: { primary: '#34D399', secondary: '#1C2438' } },
-          error:   { iconTheme: { primary: '#F87171', secondary: '#1C2438' } },
+          success: { iconTheme: { primary: '#34D399', secondary: 'transparent' } },
+          error:   { iconTheme: { primary: '#F87171', secondary: 'transparent' } },
         }}
       />
       <Sidebar />

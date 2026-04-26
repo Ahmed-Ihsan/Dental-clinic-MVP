@@ -72,7 +72,7 @@ export default function AddExpenseModal({ isOpen, onClose, onSave, professionals
           <div className="exp-form-grid">
             {/* Amount */}
             <div className="field-group">
-              <label className="field-label">المبلغ الإجمالي (ر.س)</label>
+              <label className="field-label">المبلغ الإجمالي (IQD)</label>
               <input
                 id="exp-amount"
                 type="number" min="0" step="0.01"

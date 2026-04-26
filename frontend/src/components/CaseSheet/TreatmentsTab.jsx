@@ -8,12 +8,12 @@ function formatDate(d) {
 
 function formatCurrency(n) {
   if (n == null) return '—';
-  return `${Number(n).toLocaleString('ar-EG')} ر.س`;
+  return `${Number(n).toLocaleString('ar-EG')} IQD`;
 }
 
 const TREATMENT_FIELDS = [
   { name: 'treatment_type',  label: 'نوع العلاج',     type: 'text',     required: true,  placeholder: 'مثال: حشو، تاج، تنظيف...' },
-  { name: 'cost',            label: 'التكلفة (ر.س)', type: 'number',   required: true,  placeholder: '0.00' },
+  { name: 'cost',            label: 'التكلفة (IQD)', type: 'number',   required: true,  placeholder: '0.00' },
   { name: 'treatment_date',  label: 'تاريخ العلاج',   type: 'date',     required: true },
   { name: 'notes',           label: 'ملاحظات',        type: 'textarea', required: false, placeholder: 'تفاصيل إضافية...' },
 ];

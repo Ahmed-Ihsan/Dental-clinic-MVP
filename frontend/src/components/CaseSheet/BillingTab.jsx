@@ -8,7 +8,7 @@ function formatDate(d) {
 
 function formatCurrency(n) {
   if (n == null) return '—';
-  return `${Number(n).toLocaleString('ar-EG')} ر.س`;
+  return `${Number(n).toLocaleString('ar-EG')} IQD`;
 }
 
 const STATUS_MAP = {
@@ -18,8 +18,8 @@ const STATUS_MAP = {
 };
 
 const BILL_FIELDS = [
-  { name: 'total_amount', label: 'الإجمالي (ر.س)',     type: 'number', required: true,  placeholder: '0.00' },
-  { name: 'paid_amount',  label: 'المدفوع (ر.س)',      type: 'number', required: false, placeholder: '0.00', defaultValue: '0' },
+  { name: 'total_amount', label: 'الإجمالي (IQD)',     type: 'number', required: true,  placeholder: '0.00' },
+  { name: 'paid_amount',  label: 'المدفوع (IQD)',      type: 'number', required: false, placeholder: '0.00', defaultValue: '0' },
   { name: 'due_date',     label: 'تاريخ الاستحقاق',    type: 'date',   required: true  },
   {
     name: 'status', label: 'الحالة', type: 'select', required: false,

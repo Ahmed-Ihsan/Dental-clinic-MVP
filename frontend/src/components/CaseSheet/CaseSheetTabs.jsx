@@ -1,9 +1,10 @@
 const TABS = [
-  { id: 'overview',     label: 'نظرة عامة',        icon: '◈' },
-  { id: 'history',      label: 'التاريخ الطبي',    icon: '🩺' },
-  { id: 'treatments',   label: 'العلاجات',          icon: '🦷' },
-  { id: 'appointments', label: 'المواعيد',          icon: '📅' },
-  { id: 'billing',      label: 'الفواتير',         icon: '💰' },
+  { id: 'overview',      label: 'نظرة عامة',        icon: '◈' },
+  { id: 'history',       label: 'التاريخ الطبي',    icon: '🩺' },
+  { id: 'treatments',    label: 'العلاجات',          icon: '🦷' },
+  { id: 'appointments',  label: 'المواعيد',          icon: '📅' },
+  { id: 'billing',       label: 'الفواتير',          icon: '💰' },
+  { id: 'dental-chart',  label: 'خريطة الأسنان',    icon: '🗺️' },
 ];
 
 export default function CaseSheetTabs({ activeTab, onChange, counts = {} }) {
