@@ -3,6 +3,7 @@ import { ChevronRight, ChevronLeft, Calendar, Plus, X, Clock, User, Stethoscope 
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import AppointmentDetailModal from './AppointmentDetailModal.jsx';
+import { useAuth } from '../AuthContext.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -233,11 +234,14 @@ function DayListModal({ date, appointments, onClose, onAddNew, onSelectApt }) {
 
 // ─── NewAppointmentModal ──────────────────────────────────────────────────────
 
-function NewAppointmentModal({ date, patients, professionals, onClose, onSave }) {
+function NewAppointmentModal({ date, patients, professionals, onClose, onSave, user }) {
+  const isDoctor  = user?.role === 'doctor';
+  const myProfIds = user?.professional_ids ?? [];
   const [form, setForm] = useState({
     patient_id: '', appointment_date: date,
     start_time: '', end_time: '',
-    dentist_id: '', status: 'scheduled', notes: '',
+    dentist_id: isDoctor && myProfIds.length === 1 ? myProfIds[0] : '',
+    status: 'scheduled', notes: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -391,12 +395,18 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
                 <Stethoscope size={12} style={{ display: 'inline', marginLeft: 4 }} />
                 الطبيب
               </label>
-              <select name="dentist_id" value={form.dentist_id} onChange={change} className="field-input">
-                <option value="">اختر طبيباً...</option>
-                {professionals.map(p => (
-                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
-                ))}
-              </select>
+              {isDoctor && myProfIds.length === 1 ? (
+                <div className="field-input" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🔒 {professionals.find(p => p.id === myProfIds[0]) ? `${professionals.find(p => p.id === myProfIds[0]).first_name} ${professionals.find(p => p.id === myProfIds[0]).last_name}` : 'طبيبك المعيّن'}
+                </div>
+              ) : (
+                <select name="dentist_id" value={form.dentist_id} onChange={change} className="field-input">
+                  <option value="">اختر طبيباً...</option>
+                  {(isDoctor ? professionals.filter(p => myProfIds.includes(p.id)) : professionals).map(p => (
+                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Start time */}
@@ -449,6 +459,7 @@ function NewAppointmentModal({ date, patients, professionals, onClose, onSave })
 // ─── AppointmentsCalendar (Main) ──────────────────────────────────────────────
 
 export default function AppointmentsCalendar() {
+  const { user } = useAuth();
   const today = localToday();
   const now   = new Date();
 
@@ -713,6 +724,7 @@ export default function AppointmentsCalendar() {
           professionals={professionals}
           onClose={() => setNewAptDate(null)}
           onSave={() => setRefresh(r => r + 1)}
+          user={user}
         />
       )}
     </div>

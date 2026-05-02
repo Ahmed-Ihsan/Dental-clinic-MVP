@@ -6,9 +6,11 @@
  * via the `onSave` callback (which can persist to the backend).
  */
 import { useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import InteractiveDentalChart from './InteractiveDentalChart';
+import api from '../../services/api';
 
-export default function DentalChartTab({ patientId, initialTeethState = {} }) {
+export default function DentalChartTab({ patientId, initialTeethState = {}, onSaved }) {
   const [pendingState, setPendingState] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -22,11 +24,14 @@ export default function DentalChartTab({ patientId, initialTeethState = {} }) {
     if (!pendingState) return;
     setSaving(true);
     try {
-      // TODO: Replace with real API call when backend endpoint is ready
-      // e.g.: await api.patch(`/patients/${patientId}/dental-chart`, { teeth: pendingState });
-      await new Promise((r) => setTimeout(r, 600)); // simulated network delay
+      await api.patch(`/patients/${patientId}/dental-chart`, { teeth: pendingState });
       setSaved(true);
+      onSaved?.(pendingState);
       setPendingState(null);
+      toast.success('تم حفظ خريطة الأسنان بنجاح');
+    } catch (err) {
+      console.error('Error saving dental chart:', err);
+      toast.error('فشل حفظ خريطة الأسنان');
     } finally {
       setSaving(false);
     }

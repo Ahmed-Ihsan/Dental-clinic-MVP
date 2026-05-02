@@ -1,502 +1,394 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import RevenueStatCard from './RevenueStatCard';
-import RevenueTable from './RevenueTable';
+import ExpenseStatCard from '../Expenses/ExpenseStatCard';
+import ExpenseTable from '../Expenses/ExpenseTable';
 import QuickPaymentModal from './QuickPaymentModal';
 import api from '../../services/api';
 
+/* ── helpers ─────────────────────────────────────────────────────────────── */
 const fmtCurrency = (n) => `${Number(n || 0).toLocaleString('ar-SA')} IQD`;
 const fmtDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString('ar-SA', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    : '—';
+  d ? new Date(d).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+const StatusBadge = ({ status }) => {
+  const map = {
+    paid:    { label: '✅ مدفوع',      cls: 'badge-success' },
+    partial: { label: '⚡ جزئي',       cls: 'badge-warning' },
+    pending: { label: '⏳ معلق',       cls: 'badge-ghost'   },
+    overdue: { label: '⚠️ متأخر',      cls: 'badge-danger'  },
+    unpaid:  { label: '❌ غير مدفوع',  cls: 'badge-danger'  },
+  };
+  const { label, cls } = map[status] || { label: status, cls: 'badge-ghost' };
+  return <span className={`badge ${cls}`}>{label}</span>;
+};
 
 const PaymentMethodBadge = ({ method }) => {
   const map = {
-    'كاش': { cls: 'badge-success', icon: '💵' },
-    'بطاقة ائتمان': { cls: 'badge-info', icon: '💳' },
-    'تحويل بنكي': { cls: 'badge-warning', icon: '🏦' },
+    'كاش':           { cls: 'badge-success', icon: '💵' },
+    'بطاقة ائتمان': { cls: 'badge-info',    icon: '💳' },
+    'تحويل بنكي':   { cls: 'badge-warning', icon: '🏦' },
   };
   const { cls, icon } = map[method] || { cls: 'badge-ghost', icon: '💰' };
-  return <span className={`badge ${cls}`}>{icon} {method}</span>;
+  return <span className={`badge ${cls}`}>{icon} {method || '—'}</span>;
 };
 
-const ProfitBar = ({ pct }) => (
-  <div className="rev-profit-bar-wrap">
-    <div
-      className="rev-profit-bar-fill"
-      style={{
-        width: `${Math.min(pct, 100)}%`,
-        background:
-          pct >= 70
-            ? 'var(--success)'
-            : pct >= 50
-            ? 'var(--warning)'
-            : 'var(--danger)',
-      }}
-    />
-    <span className="rev-profit-bar-label">{pct}%</span>
-  </div>
-);
+const patientName = (id, patients) => {
+  const p = patients.find(p => String(p.id) === String(id));
+  return p ? `${p.first_name} ${p.last_name}` : `م.#${id}`;
+};
 
-function RevenueProfitabilityTab({ categories }) {
+/* ── Tab 1: Status Summary ───────────────────────────────────────────────── */
+function RevenueSummaryTab({ bills }) {
+  const summary = useMemo(() => [
+    { key: 'paid',    label: '✅ مدفوعة',          bills: bills.filter(b => b.status === 'paid') },
+    { key: 'partial', label: '⚡ مدفوعة جزئياً',   bills: bills.filter(b => b.status === 'partial') },
+    { key: 'pending', label: '⏳ معلقة',            bills: bills.filter(b => b.status === 'pending' || b.status === 'unpaid') },
+    { key: 'overdue', label: '⚠️ متأخرة السداد',   bills: bills.filter(b => b.status === 'overdue') },
+  ].map(row => ({
+    label:       row.label,
+    total:       row.bills.length,
+    totalAmount: row.bills.reduce((s, b) => s + (b.total_amount || 0), 0),
+    totalPaid:   row.bills.reduce((s, b) => s + (b.paid_amount  || 0), 0),
+    totalDebt:   row.bills.reduce((s, b) => s + (b.balance      || 0), 0),
+  })), [bills]);
+
   const columns = [
-    {
-      key: 'category_name',
-      label: 'فئة العلاج',
-      render: (v, row) => (
-        <div className="rev-cat-cell">
-          <span className="rev-cat-icon">{row.category_icon}</span>
-          <span className="rev-cat-name">{v}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'cases_count',
-      label: 'عدد الحالات',
-      render: (v) => <span className="badge badge-ghost">{v} حالة</span>,
-    },
-    {
-      key: 'total_payments',
-      label: 'المدفوعات المستلمة',
-      render: (v) => (
-        <span style={{ color: 'var(--success)', fontWeight: 700 }}>
-          {fmtCurrency(v)}
-        </span>
-      ),
-    },
-    {
-      key: 'total_debts',
-      label: 'المديونيات',
-      render: (v) =>
-        v > 0 ? (
-          <span style={{ color: 'var(--danger)', fontWeight: 700 }}>
-            {fmtCurrency(v)}
-          </span>
-        ) : (
-          <span style={{ color: 'var(--text-muted)' }}>لا يوجد</span>
-        ),
-    },
-    {
-      key: 'profit_margin_percent',
-      label: 'هامش الربح %',
-      render: (v) => <ProfitBar pct={v} />,
-    },
-    {
-      key: 'net_profit',
-      label: 'صافي الربح',
-      // FIX: Dynamically calculate profit based on payments and margin %
-      render: (v, row) => {
-        const actualProfit = row.total_payments * (row.profit_margin_percent / 100);
-        return <span className="rev-net-profit">{fmtCurrency(actualProfit)}</span>;
-      },
-    },
-    {
-      key: 'trend',
-      label: 'الاتجاه',
-      sortable: false,
-      render: (v, row) => (
-        <span className={`rev-trend-badge ${row.trend_up ? 'trend-up' : 'trend-down'}`}>
-          {row.trend_up ? '↑' : '↓'} {v}
-        </span>
-      ),
-    },
+    { key: 'label',       label: 'التصنيف',          render: (v) => <span style={{ fontWeight: 600 }}>{v}</span> },
+    { key: 'total',       label: 'عدد الفواتير',      render: (v) => <span className="badge badge-ghost">{v}</span> },
+    { key: 'totalAmount', label: 'إجمالي الفواتير',   render: (v) => fmtCurrency(v) },
+    { key: 'totalPaid',   label: 'إجمالي المحصّل',    render: (v) => <span style={{ color: 'var(--success)', fontWeight: 700 }}>{fmtCurrency(v)}</span> },
+    { key: 'totalDebt',   label: 'إجمالي المتبقي',    render: (v) => v > 0
+        ? <span style={{ color: 'var(--danger)', fontWeight: 700 }}>{fmtCurrency(v)}</span>
+        : <span style={{ color: 'var(--text-muted)' }}>لا يوجد</span> },
   ];
-  // FIX: Removed the redundant `<div className="rev-tab-header">`
+
   return (
     <div>
-      <RevenueTable
-        columns={columns}
-        rows={categories}
-        emptyMsg="لا توجد بيانات إيرادات"
-        perPage={8}
-      />
+      <div className="exp-tab-header">
+        <h3 className="exp-tab-title">📊 ملخص الإيرادات حسب الحالة</h3>
+        <span className="exp-tab-desc">نظرة تحليلية على توزيع الفواتير والمبالغ المحصلة لكل تصنيف</span>
+      </div>
+      <ExpenseTable columns={columns} rows={summary} emptyMsg="لا توجد بيانات" />
     </div>
   );
 }
 
+/* ── Tab 2: Completed Revenue ────────────────────────────────────────────── */
+function CompletedRevenueTab({ bills, patients }) {
+  const rows = useMemo(() =>
+    bills
+      .filter(b => b.status === 'paid')
+      .map(b => ({ ...b, _patientName: patientName(b.patient_id, patients) }))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+    [bills, patients]
+  );
+
+  const columns = [
+    { key: 'id',              label: 'رقم الفاتورة',   render: (v) => <span className="exp-receipt-id">#{v}</span> },
+    { key: 'created_at',      label: 'التاريخ',         render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{fmtDate(v)}</span> },
+    { key: '_patientName',    label: 'المريض',          render: (v) => <span className="exp-patient-name">🦷 {v}</span>, sortable: false },
+    { key: 'total_amount',    label: 'قيمة الفاتورة',  render: (v) => fmtCurrency(v) },
+    { key: 'discount_amount', label: 'الخصم',           render: (v) => v > 0
+        ? <span style={{ color: 'var(--warning)' }}>{fmtCurrency(v)}</span>
+        : <span style={{ color: 'var(--text-muted)' }}>—</span> },
+    { key: 'paid_amount',     label: 'المبلغ المحصّل',  render: (v) => <span style={{ color: 'var(--success)', fontWeight: 700 }}>{fmtCurrency(v)}</span> },
+    { key: 'status',          label: 'الحالة',          render: (v) => <StatusBadge status={v} />, sortable: false },
+  ];
+
+  return (
+    <div>
+      <div className="exp-tab-header">
+        <h3 className="exp-tab-title">✅ الإيرادات المكتملة</h3>
+        <span className="exp-tab-desc">الفواتير المدفوعة بالكامل ومجموع المبالغ المحصلة</span>
+      </div>
+      <ExpenseTable columns={columns} rows={rows} emptyMsg="لا توجد إيرادات مكتملة" />
+    </div>
+  );
+}
+
+/* ── Tab 3: Outstanding Debts ────────────────────────────────────────────── */
+function OutstandingDebtsTab({ bills, patients }) {
+  const rows = useMemo(() =>
+    bills
+      .filter(b => (b.balance || 0) > 0)
+      .map(b => ({ ...b, _patientName: patientName(b.patient_id, patients) }))
+      .sort((a, b) => (b.balance || 0) - (a.balance || 0)),
+    [bills, patients]
+  );
+
+  const columns = [
+    { key: 'id',           label: 'رقم الفاتورة',       render: (v) => <span className="exp-receipt-id">#{v}</span> },
+    { key: 'created_at',   label: 'التاريخ',             render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{fmtDate(v)}</span> },
+    { key: '_patientName', label: 'المريض',              render: (v) => <span className="exp-patient-name">🦷 {v}</span>, sortable: false },
+    { key: 'total_amount', label: 'قيمة الفاتورة',      render: (v) => fmtCurrency(v) },
+    { key: 'paid_amount',  label: 'المدفوع',             render: (v) => <span style={{ color: 'var(--success)' }}>{fmtCurrency(v)}</span> },
+    { key: 'balance',      label: 'المتبقي',             render: (v) => <span style={{ color: 'var(--danger)', fontWeight: 700 }}>{fmtCurrency(v)}</span> },
+    { key: 'status',       label: 'الحالة',              render: (v) => <StatusBadge status={v} />, sortable: false },
+    { key: 'due_date',     label: 'تاريخ الاستحقاق',    render: (v) => <span style={{ color: 'var(--warning)' }}>{fmtDate(v)}</span> },
+  ];
+
+  return (
+    <div>
+      <div className="exp-tab-header">
+        <h3 className="exp-tab-title">⚠️ مديونيات المرضى</h3>
+        <span className="exp-tab-desc">الفواتير غير المسددة كلياً أو جزئياً، مرتبة تنازلياً حسب المبلغ المتبقي</span>
+      </div>
+      <ExpenseTable columns={columns} rows={rows} emptyMsg="لا توجد مديونيات معلقة 🎉" />
+    </div>
+  );
+}
+
+/* ── Tab 4: Payments Ledger ──────────────────────────────────────────────── */
 function PaymentsLedgerTab({ payments }) {
   const columns = [
-    {
-      key: 'receipt_id',
-      label: 'رقم الإيصال',
-      render: (v) => <span className="rev-receipt-id">{v}</span>,
-    },
-    {
-      key: 'date',
-      label: 'التاريخ',
-      render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{fmtDate(v)}</span>,
-    },
-    {
-      key: 'patient_name',
-      label: 'اسم المريض',
-      sortable: false,
-      render: (v) => <span className="rev-patient-name">🦷 {v}</span>,
-    },
-    {
-      key: 'category',
-      label: 'الفئة',
-      sortable: false,
-      render: (v) => <span className="badge badge-primary">{v}</span>,
-    },
-    {
-      key: 'treatment',
-      label: 'العلاج / الخدمة',
-      sortable: false,
-      render: (v) => <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{v}</span>,
-    },
-    {
-      key: 'amount_received',
-      label: 'المبلغ المستلم',
-      render: (v) => (
-        <span style={{ color: 'var(--success)', fontWeight: 700 }}>
-          {fmtCurrency(v)}
-        </span>
-      ),
-    },
-    {
-      key: 'payment_method',
-      label: 'طريقة الدفع',
-      sortable: false,
-      render: (v) => <PaymentMethodBadge method={v} />,
-    },
+    { key: 'receipt_id',     label: 'رقم الإيصال',     render: (v) => <span className="exp-receipt-id">{v || '—'}</span> },
+    { key: 'date',           label: 'التاريخ',           render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{fmtDate(v)}</span> },
+    { key: 'patient_name',   label: 'المريض',            render: (v) => <span className="exp-patient-name">🦷 {v}</span>, sortable: false },
+    { key: 'category',       label: 'الفئة',             render: (v) => <span className="badge badge-primary">{v || '—'}</span>, sortable: false },
+    { key: 'treatment',      label: 'العلاج / الخدمة',  render: (v) => <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{v || '—'}</span>, sortable: false },
+    { key: 'amount_received', label: 'المبلغ المستلم',   render: (v) => <span style={{ color: 'var(--success)', fontWeight: 700 }}>{fmtCurrency(v)}</span> },
+    { key: 'payment_method', label: 'طريقة الدفع',      render: (v) => <PaymentMethodBadge method={v} />, sortable: false },
   ];
 
   return (
     <div>
-      <div className="rev-tab-header">
-        <h3 className="rev-tab-title">📜 سجل المدفوعات المستلمة</h3>
-        <span className="rev-tab-desc">
-          سجل زمني تفصيلي لجميع المبالغ النقدية الداخلة للعيادة
-        </span>
+      <div className="exp-tab-header">
+        <h3 className="exp-tab-title">📜 سجل الإيصالات والمدفوعات</h3>
+        <span className="exp-tab-desc">سجل زمني كامل لجميع المعاملات المالية الواردة للعيادة</span>
       </div>
-      <RevenueTable
-        columns={columns}
-        rows={payments}
-        emptyMsg="لا توجد مدفوعات مسجلة"
-        perPage={10}
-      />
+      <ExpenseTable columns={columns} rows={payments} emptyMsg="لا توجد مدفوعات مسجلة" />
     </div>
   );
 }
 
-function exportToCSV(data, filename, columns) {
-  const headers = columns.map(c =>
-    typeof c.label === 'string' ? c.label : c.key
-  ).join(',');
-
-  const rows = data.map(row =>
-    columns.map(col => {
-      let val = row[col.key];
-      if (val === null || val === undefined) val = '';
-      val = String(val).replace(/"/g, '""');
-      return `"${val}"`;
-    }).join(',')
-  );
-
-  const csv = [headers, ...rows].join('\n');
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
+/* ══════════════════════════════════════════════════════════════════════════
+   MAIN REVENUE DASHBOARD
+   ══════════════════════════════════════════════════════════════════════════ */
 export default function RevenueDashboard() {
-  const [categories, setCategories] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
+  const [bills,      setBills]      = useState([]);
+  const [patients,   setPatients]   = useState([]);
+  const [payments,   setPayments]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [activeTab,  setActiveTab]  = useState(0);
+  const [qpmOpen,    setQpmOpen]    = useState(false);
 
-  const [search, setSearch] = useState('');
+  /* ── Filters ── */
+  const [search,   setSearch]   = useState('');
   const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [qpmOpen, setQpmOpen] = useState(false);
+  const [toDate,   setToDate]   = useState('');
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = async () => {
     try {
+      setLoading(true);
       const params = {};
       if (fromDate) params.start_date = fromDate;
-      if (toDate) params.end_date = toDate;
+      if (toDate)   params.end_date   = toDate;
 
-      const [summaryRes, categoriesRes, paymentsRes] = await Promise.all([
-        api.get('/revenue/summary', { params }),
-        api.get('/revenue/categories', { params }),
+      const [billsRes, patientsRes, paymentsRes] = await Promise.all([
+        api.get('/bills'),
+        api.get('/patients'),
         api.get('/revenue/payments', { params }),
       ]);
 
-      setSummary(summaryRes.data);
-      setCategories(categoriesRes.data);
-      setPayments(paymentsRes.data);
-    } catch (error) {
-      console.error('Error fetching revenue data:', error);
+      setBills(billsRes.data     || []);
+      setPatients(patientsRes.data || []);
+      setPayments(paymentsRes.data || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching revenue data:', err);
+      setError('فشل في تحميل البيانات');
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate]);
+  };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fromDate, toDate]);
 
-  const handleQpmSuccess = useCallback(() => {
+  const handleQpmSuccess = () => {
     toast.success('تم تسجيل الإيراد بنجاح وتحديث البيانات');
     fetchData();
-  }, [fetchData]);
+  };
 
-  const filteredCategories = useMemo(
-    () =>
-      categories.filter((c) =>
-        !search.trim() ||
-        c.category_name.toLowerCase().includes(search.toLowerCase())
-      ),
-    [categories, search]
+  /* ── Filter logic ── */
+  const filtered = useMemo(() =>
+    bills.filter(b => {
+      const name    = patientName(b.patient_id, patients);
+      const matchSearch = !search.trim() ||
+        name.toLowerCase().includes(search.toLowerCase()) ||
+        String(b.id).includes(search);
+      const billDate  = (b.created_at || '').substring(0, 10);
+      const matchFrom = !fromDate || billDate >= fromDate;
+      const matchTo   = !toDate   || billDate <= toDate;
+      return matchSearch && matchFrom && matchTo;
+    }),
+    [bills, patients, search, fromDate, toDate]
   );
 
-  const filteredPayments = useMemo(
-    () =>
-      payments.filter((p) => {
-        const matchSearch =
-          !search.trim() ||
-          p.patient_name.toLowerCase().includes(search.toLowerCase()) ||
-          (p.receipt_id || '').toLowerCase().includes(search.toLowerCase()) ||
-          (p.treatment || '').toLowerCase().includes(search.toLowerCase()) ||
-          (p.category || '').toLowerCase().includes(search.toLowerCase());
-        const matchFrom = !fromDate || p.date >= fromDate;
-        const matchTo = !toDate || p.date <= toDate;
-        return matchSearch && matchFrom && matchTo;
-      }),
+  const filteredPayments = useMemo(() =>
+    payments.filter(p => {
+      const matchSearch = !search.trim() ||
+        (p.patient_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.receipt_id   || '').toLowerCase().includes(search.toLowerCase());
+      const matchFrom = !fromDate || p.date >= fromDate;
+      const matchTo   = !toDate   || p.date <= toDate;
+      return matchSearch && matchFrom && matchTo;
+    }),
     [payments, search, fromDate, toDate]
   );
 
+  /* ── KPI computations ── */
   const kpi = useMemo(() => {
-    if (!summary) {
-      return {
-        totalCases: 0,
-        totalPayments: 0,
-        totalDebts: 0,
-        totalNetProfit: 0,
-        overallMargin: 0,
-        trendPayments: { value: '+0%', up: true },
-        trendDebts: { value: '-0%', up: false },
-        trendMargin: { value: '+0%', up: true },
-        trendNet: { value: '+0%', up: true },
-      };
-    }
-    // FIX: Calculate the actual total net profit using total paid and the overall margin
-    const calculatedTotalNetProfit = summary.total_paid * ((summary.profit_margin_percent || 0) / 100);
-    return {
-      totalCases: summary.cases_count || 0,
-      totalPayments: summary.total_paid || 0,
-      totalDebts: summary.total_balance || 0,
-      totalNetProfit: calculatedTotalNetProfit, // Use the fixed calculation here
-      overallMargin: summary.profit_margin_percent || 0,
-      trendPayments: summary.trends?.paid || { value: '+0%', up: true },
-      trendDebts: summary.trends?.balance || { value: '-0%', up: false },
-      trendMargin: summary.trends?.margin || { value: '+0%', up: true },
-      trendNet: summary.trends?.net_profit || { value: '+0%', up: true },
-    };
-  }, [summary]);
+    const totalPaid   = filtered.reduce((s, b) => s + (b.paid_amount   || 0), 0);
+    const totalDebt   = filtered.filter(b => (b.balance || 0) > 0).reduce((s, b) => s + (b.balance || 0), 0);
+    const totalAmount = filtered.reduce((s, b) => s + (b.total_amount  || 0), 0);
+    const debtCount   = filtered.filter(b => (b.balance || 0) > 0).length;
+    const collectionRate = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0;
+    return { totalPaid, totalDebt, totalAmount, debtCount, collectionRate };
+  }, [filtered]);
 
-  const handleExport = () => {
-    if (activeTab === 0) {
-      const cols = [
-        { key: 'category_name', label: 'فئة العلاج' },
-        { key: 'cases_count', label: 'عدد الحالات' },
-        { key: 'total_payments', label: 'المدفوعات' },
-        { key: 'total_debts', label: 'المديونيات' },
-        { key: 'profit_margin_percent', label: 'هامش الربح %' },
-        { key: 'net_profit', label: 'صافي الربح' },
-        { key: 'trend', label: 'الاتجاه' },
-      ];
-      exportToCSV(filteredCategories, `revenue-categories-${toDate || 'all'}.csv`, cols);
-    } else {
-      const cols = [
-        { key: 'receipt_id', label: 'رقم الإيصال' },
-        { key: 'date', label: 'التاريخ' },
-        { key: 'patient_name', label: 'اسم المريض' },
-        { key: 'category', label: 'الفئة' },
-        { key: 'treatment', label: 'العلاج' },
-        { key: 'amount_received', label: 'المبلغ المستلم' },
-        { key: 'payment_method', label: 'طريقة الدفع' },
-      ];
-      exportToCSV(filteredPayments, `payments-${toDate || 'all'}.csv`, cols);
-    }
-  };
-
+  /* ── Tabs config ── */
   const TABS = [
-    { label: 'تحليل الإيرادات والأرباح', icon: '📊', count: filteredCategories.length },
-    { label: 'سجل المدفوعات', icon: '📜', count: filteredPayments.length },
+    { label: 'ملخص الإيرادات',    icon: '📊', count: null },
+    { label: 'إيرادات مكتملة',    icon: '✅', count: filtered.filter(b => b.status === 'paid').length },
+    { label: 'مديونيات المرضى',   icon: '⚠️', count: filtered.filter(b => (b.balance || 0) > 0).length },
+    { label: 'سجل الإيصالات',     icon: '📜', count: filteredPayments.length },
   ];
 
   if (loading) {
     return (
-      <div className="rev-loading">
-        <div className="rev-loading-spinner" />
+      <div className="exp-loading">
+        <div className="exp-loading-spinner" />
         <span>جاري تحميل بيانات الإيرادات...</span>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="exp-loading">
+        <span style={{ color: 'var(--danger)', marginBottom: 16 }}>⚠️ {error}</span>
+        <button className="btn btn-primary" onClick={fetchData}>إعادة المحاولة</button>
+      </div>
+    );
+  }
+
   return (
-    <div className="rev-page animate-in">
+    <div className="exp-page animate-in">
+      {/* ── Page Header ── */}
       <div className="page-header">
         <h1 className="page-header-title">
           <span className="page-header-icon">💰</span>
           الإيرادات والأرباح
         </h1>
         <p className="page-header-subtitle">
-          لوحة التحليل المالي الشامل للإيرادات، المدفوعات، والمديونيات
+          التتبع المالي الشامل للإيرادات، المدفوعات، والمديونيات
         </p>
       </div>
 
-      <div className="rev-kpi-grid animate-in animate-in-delay-1">
-        <RevenueStatCard
-          label="إجمالي الحالات"
-          value={kpi.totalCases}
-          icon="🦷"
-          variant="primary"
-          unit="حالة"
-          sub={`${filteredCategories.length} فئة علاجية`}
-        />
-        <RevenueStatCard
-          label="إجمالي المدفوعات"
-          value={kpi.totalPayments}
+      {/* ── KPI Cards ── */}
+      <div className="exp-kpi-grid animate-in animate-in-delay-1">
+        <ExpenseStatCard
+          label="إجمالي المحصّل"
+          value={kpi.totalPaid}
           icon="✅"
           variant="success"
-          sub={`${filteredPayments.length} معاملة`}
-          trend={kpi.trendPayments.value}
-          trendUp={kpi.trendPayments.up}
+          sub={`${filtered.filter(b => b.status === 'paid').length} فاتورة مكتملة`}
         />
-        <RevenueStatCard
+        <ExpenseStatCard
           label="إجمالي المديونيات"
-          value={kpi.totalDebts}
+          value={kpi.totalDebt}
           icon="⚠️"
           variant="danger"
-          sub="مستحقة من المرضى"
-          trend={kpi.trendDebts.value}
-          trendUp={kpi.trendDebts.up}
+          sub={`${kpi.debtCount} فاتورة غير مسددة`}
         />
-        <RevenueStatCard
-          label="هامش الربح الإجمالي"
-          value={kpi.overallMargin}
-          icon="📈"
+        <ExpenseStatCard
+          label="إجمالي الفواتير"
+          value={kpi.totalAmount}
+          icon="📊"
+          variant="primary"
+          sub={`${filtered.length} سجل في النطاق المحدد`}
+        />
+        <ExpenseStatCard
+          label="نسبة التحصيل"
+          value={kpi.collectionRate}
+          icon="🎯"
           variant="accent"
           unit="%"
-          sub="متوسط مرجح لجميع الفئات"
-          trend={kpi.trendMargin.value}
-          trendUp={kpi.trendMargin.up}
-        />
-        <RevenueStatCard
-          label="صافي الربح الإجمالي"
-          value={kpi.totalNetProfit}
-          icon="💎"
-          variant="warning"
-          sub="بعد خصم التكاليف التشغيلية"
-          trend={kpi.trendNet.value}
-          trendUp={kpi.trendNet.up}
+          sub="من إجمالي قيمة الفواتير"
         />
       </div>
 
-      <div className="rev-controls animate-in animate-in-delay-2">
-        <div className="rev-search-wrap">
-          <span className="rev-search-icon">🔍</span>
+      {/* ── Filter & Controls Bar ── */}
+      <div className="exp-controls animate-in animate-in-delay-2">
+        <div className="exp-search-wrap">
+          <span className="exp-search-icon">🔍</span>
           <input
-            id="rev-global-search"
             type="text"
-            className="rev-search-input"
-            placeholder="بحث في الإيرادات... (المريض، الفئة، رقم الإيصال)"
+            className="exp-search-input"
+            placeholder="بحث في الإيرادات... (المريض، رقم الفاتورة)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {search && (
-            <button className="rev-search-clear" onClick={() => setSearch('')}>✕</button>
+            <button className="exp-search-clear" onClick={() => setSearch('')}>✕</button>
           )}
         </div>
 
-        <div className="rev-date-range">
-          <span className="rev-date-label">من</span>
+        <div className="exp-date-range">
+          <span className="exp-date-label">من</span>
           <input
-            id="rev-from-date"
             type="date"
-            className="field-input rev-date-input"
+            className="field-input exp-date-input"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
           />
-          <span className="rev-date-label">إلى</span>
+          <span className="exp-date-label">إلى</span>
           <input
-            id="rev-to-date"
             type="date"
-            className="field-input rev-date-input"
+            className="field-input exp-date-input"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
           />
           {(fromDate || toDate) && (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => { setFromDate(''); setToDate(''); }}
-            >
+            <button className="btn btn-ghost btn-sm" onClick={() => { setFromDate(''); setToDate(''); }}>
               مسح
             </button>
           )}
         </div>
 
         <button
-          id="rev-export-btn"
-          className="btn btn-ghost rev-export-btn"
-          title="تصدير التقرير"
-          onClick={handleExport}
-        >
-          <span>📤</span>
-          <span>تصدير</span>
-        </button>
-
-        <button
-          id="rev-quick-payment-btn"
-          className="btn btn-primary"
+          className="btn btn-primary exp-add-btn"
           onClick={() => setQpmOpen(true)}
-          style={{ gap: 6, whiteSpace: 'nowrap' }}
         >
-          <span>➕</span>
-          <span>تسجيل إيراد سريع</span>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
+          تسجيل إيراد
         </button>
       </div>
 
-      <div className="rev-card animate-in animate-in-delay-3">
-        <div className="rev-tabs">
+      {/* ── Tabbed Sheets ── */}
+      <div className="exp-card animate-in animate-in-delay-3">
+        <div className="exp-tabs">
           {TABS.map((tab, i) => (
             <button
               key={i}
-              id={`rev-tab-${i}`}
-              className={`rev-tab ${activeTab === i ? 'active' : ''}`}
+              className={`exp-tab ${activeTab === i ? 'active' : ''}`}
               onClick={() => setActiveTab(i)}
             >
               <span>{tab.icon}</span>
-              <span className="rev-tab-label">{tab.label}</span>
+              <span className="exp-tab-label">{tab.label}</span>
               {tab.count !== null && (
-                <span className="rev-tab-count">{tab.count}</span>
+                <span className="exp-tab-count">{tab.count}</span>
               )}
             </button>
           ))}
         </div>
 
-        <div className="rev-tab-panel">
-          {activeTab === 0 && (
-            <RevenueProfitabilityTab categories={filteredCategories} />
-          )}
-          {activeTab === 1 && (
-            <PaymentsLedgerTab payments={filteredPayments} />
-          )}
+        <div className="exp-tab-panel">
+          {activeTab === 0 && <RevenueSummaryTab    bills={filtered} />}
+          {activeTab === 1 && <CompletedRevenueTab  bills={filtered} patients={patients} />}
+          {activeTab === 2 && <OutstandingDebtsTab  bills={filtered} patients={patients} />}
+          {activeTab === 3 && <PaymentsLedgerTab    payments={filteredPayments} />}
         </div>
       </div>
 

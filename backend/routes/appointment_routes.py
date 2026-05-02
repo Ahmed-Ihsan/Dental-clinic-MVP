@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from models import Appointment
+from flask_login import current_user
+from models import Appointment, Professional
 from database import db
 from datetime import datetime, date, time
 
@@ -8,13 +9,22 @@ appointment_bp = Blueprint("appointment", __name__)
 
 @appointment_bp.route("/appointments", methods=["GET"])
 def get_appointments():
-    status = request.args.get("status", "")
-    date_from = request.args.get("date_from", "")
-    date_to = request.args.get("date_to", "")
+    status     = request.args.get("status", "")
+    date_from  = request.args.get("date_from", "")
+    date_to    = request.args.get("date_to", "")
     patient_id = request.args.get("patient_id", "")
 
     query = Appointment.query
 
+    # ── Role-based filter ──────────────────────────────────────────
+    if current_user.is_authenticated and current_user.role == 'doctor':
+        prof_ids = [p.id for p in Professional.query.filter_by(user_id=current_user.id).all()]
+        if prof_ids:
+            query = query.filter(Appointment.dentist_id.in_(prof_ids))
+        else:
+            return jsonify([])   # doctor has no linked professional yet
+
+    # ── Standard filters ───────────────────────────────────────────
     if status and status != "all":
         query = query.filter(Appointment.status == status)
 
@@ -38,13 +48,21 @@ def create_appointment():
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
+    # Auto-assign / validate dentist for doctor role
+    dentist_id = data.get("dentist_id")
+    if current_user.is_authenticated and current_user.role == 'doctor':
+        prof_ids = [p.id for p in Professional.query.filter_by(user_id=current_user.id).all()]
+        if prof_ids:
+            # Allow doctor to pick among their own profiles; default to first
+            dentist_id = int(dentist_id) if dentist_id and int(dentist_id) in prof_ids else prof_ids[0]
+
     try:
         appointment = Appointment(
             patient_id=data["patient_id"],
             appointment_date=date.fromisoformat(data["appointment_date"]),
             start_time=time.fromisoformat(data["start_time"]),
             end_time=time.fromisoformat(data["end_time"]),
-            dentist_id=data.get("dentist_id"),
+            dentist_id=dentist_id,
             status=data.get("status", "scheduled"),
             notes=data.get("notes"),
         )

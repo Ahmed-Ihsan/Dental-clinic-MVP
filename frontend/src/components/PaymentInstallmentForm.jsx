@@ -129,7 +129,7 @@ const PaymentInstallmentForm = ({ onSave, editInstallment = null }) => {
       return;
     }
 
-    if (calculatedFields.difference > 0.01) {
+    if (Math.abs(calculatedFields.difference) > 0.01) {
       alert('المبلغ الإجمالي لا يتطابق مع مجموع الدفعات. يرجى التأكد من البيانات.');
       return;
     }
@@ -270,6 +270,7 @@ const PaymentInstallmentForm = ({ onSave, editInstallment = null }) => {
             onChange={handleInputChange}
             className="form-input"
             placeholder="المبلغ الكلي"
+            min="0"
             step="0.01"
             required
           />
@@ -284,6 +285,7 @@ const PaymentInstallmentForm = ({ onSave, editInstallment = null }) => {
             onChange={handleInputChange}
             className="form-input"
             placeholder="مبلغ كل دفعة"
+            min="0"
             step="0.01"
             required
           />

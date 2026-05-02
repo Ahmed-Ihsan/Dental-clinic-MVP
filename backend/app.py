@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_login import LoginManager, login_required, current_user
@@ -79,9 +79,13 @@ def load_user(user_id):
 @app.route("/api/me")
 @login_required
 def me():
-    from flask_login import current_user
-
-    return jsonify({"username": current_user.username})
+    from models import Professional
+    profs = Professional.query.filter_by(user_id=current_user.id).all()
+    return jsonify({
+        "username":         current_user.username,
+        "role":             current_user.role,
+        "professional_ids": [p.id for p in profs],
+    })
 
 
 @app.route("/")

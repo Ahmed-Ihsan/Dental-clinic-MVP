@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
+from flask_login import current_user
 from datetime import datetime, date
-from models import Bill
+from sqlalchemy import select
+from models import Bill, Appointment, Professional
 from database import db
 
 bill_bp = Blueprint("bill", __name__)
@@ -10,8 +12,21 @@ bill_bp = Blueprint("bill", __name__)
 def get_bills():
     status_filter = request.args.get("status")
     query = Bill.query
+
+    # ── Role-based filter ──────────────────────────────────────────
+    if current_user.is_authenticated and current_user.role == 'doctor':
+        prof_ids = [p.id for p in Professional.query.filter_by(user_id=current_user.id).all()]
+        if not prof_ids:
+            return jsonify([])   # no linked professional → no bills
+        apt_ids = db.session.execute(
+            select(Appointment.id).where(Appointment.dentist_id.in_(prof_ids))
+        ).scalars().all()
+        query = query.filter(Bill.appointment_id.in_(apt_ids))
+
+    # ── Standard filter ────────────────────────────────────────────
     if status_filter:
         query = query.filter(Bill.status == status_filter)
+
     bills = query.all()
     return jsonify([bill.to_dict() for bill in bills])
 

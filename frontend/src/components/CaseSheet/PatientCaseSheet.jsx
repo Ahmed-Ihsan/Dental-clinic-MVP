@@ -21,7 +21,7 @@ export default function PatientCaseSheet() {
     patient, medicalHistory, treatments, appointments, bills,
     loading, error,
     addMedicalHistory, addTreatment, addAppointment, addBill,
-    deleteTreatment, deleteMedicalHistory,
+    deleteTreatment, deleteMedicalHistory, updatePatientField,
   } = useCaseSheetData(patientId);
 
   const tabCounts = {
@@ -117,7 +117,11 @@ export default function PatientCaseSheet() {
           )}
 
           {activeTab === 'dental-chart' && (
-            <DentalChartTab patientId={patientId} />
+            <DentalChartTab
+              patientId={patientId}
+              initialTeethState={patient.dental_chart || {}}
+              onSaved={(teeth) => updatePatientField({ dental_chart: teeth })}
+            />
           )}
         </div>
       </div>

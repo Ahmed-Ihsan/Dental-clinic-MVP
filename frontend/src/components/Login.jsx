@@ -4,9 +4,8 @@ import api from '../services/api';
 import { useAuth } from '../AuthContext.jsx';
 
 const Login = () => {
-  const [isRegister, setIsRegister] = useState(false);
-  const [form, setForm] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
+  const [form, setForm]       = useState({ username: '', password: '' });
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -18,19 +17,11 @@ const Login = () => {
     setLoading(true);
     setError('');
     try {
-      const endpoint = isRegister ? '/register' : '/login';
-      const response = await api.post(endpoint, form);
-      if (response.status === 200 || response.status === 201) {
-        if (isRegister) {
-          setError('User registered. Please login.');
-          setIsRegister(false);
-        } else {
-          login();
-          navigate('/');
-        }
-      }
+      const response = await api.post('/login', form);
+      login({ username: response.data.username, role: response.data.role, professional_ids: response.data.professional_ids ?? [] });
+      navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || (isRegister ? 'Register failed' : 'Login failed'));
+      setError(err.response?.data?.message || 'بيانات الدخول غير صحيحة');
     } finally {
       setLoading(false);
     }
@@ -39,7 +30,11 @@ const Login = () => {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h2 className="login-title">{isRegister ? 'تسجيل حساب جديد' : 'تسجيل الدخول'}</h2>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>🦷</div>
+          <h2 className="login-title">تسجيل الدخول</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>نظام إدارة عيادة الأسنان</p>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className="field-group">
             <label className="field-label">اسم المستخدم</label>
@@ -51,6 +46,7 @@ const Login = () => {
               required
               className="field-input"
               placeholder="أدخل اسم المستخدم"
+              autoFocus
             />
           </div>
           <div className="field-group">
@@ -67,12 +63,9 @@ const Login = () => {
           </div>
           {error && <div className="error-message">{error}</div>}
           <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-            {loading ? 'جارٍ...' : (isRegister ? 'تسجيل' : 'تسجيل الدخول')}
+            {loading ? 'جارٍ...' : 'تسجيل الدخول'}
           </button>
         </form>
-        <button onClick={() => setIsRegister(!isRegister)} className="btn btn-ghost" style={{ marginTop: 10 }}>
-          {isRegister ? 'لديك حساب؟ تسجيل الدخول' : 'لا تملك حساب؟ تسجيل جديد'}
-        </button>
       </div>
     </div>
   );

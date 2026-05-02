@@ -1,3 +1,4 @@
+import json
 from database import db
 
 
@@ -13,6 +14,7 @@ class Patient(db.Model):
     phone = db.Column(db.String(20))
     email = db.Column(db.String(100))
     emergency_contact = db.Column(db.String(100))
+    dental_chart = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(
         db.DateTime,
@@ -31,6 +33,7 @@ class Patient(db.Model):
             "phone": self.phone,
             "email": self.email,
             "emergency_contact": self.emergency_contact,
+            "dental_chart": json.loads(self.dental_chart) if self.dental_chart else None,
             "medical_histories": [mh.to_dict() for mh in self.medical_histories],
             "created_at": str(self.created_at),
             "updated_at": str(self.updated_at),

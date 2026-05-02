@@ -100,27 +100,98 @@ function ClinicExpensesTab({ expenses }) {
 
 /* ── Tab 3: Doctor Expenses ─────────────────────────────────────────────── */
 function DoctorExpensesTab({ expenses, professionals }) {
-  const rows = expenses
-    .filter(e => e.category === 'doctor')
-    .map(e => ({ ...e, _doctorName: doctorName(e.doctor_id, professionals) }));
+  const [selectedDoctor, setSelectedDoctor] = useState('');
+
+  const allDoctorRows = useMemo(() =>
+    expenses
+      .filter(e => e.category === 'doctor')
+      .map(e => ({ ...e, _doctorName: doctorName(e.doctor_id, professionals) })),
+    [expenses, professionals]
+  );
+
+  const activeDoctors = useMemo(() => {
+    const seen = new Set();
+    return allDoctorRows
+      .filter(e => { if (seen.has(e.doctor_id)) return false; seen.add(e.doctor_id); return true; })
+      .map(e => ({ id: e.doctor_id, name: e._doctorName }));
+  }, [allDoctorRows]);
+
+  const rows = useMemo(() =>
+    selectedDoctor
+      ? allDoctorRows.filter(e => String(e.doctor_id) === selectedDoctor)
+      : allDoctorRows,
+    [allDoctorRows, selectedDoctor]
+  );
+
+  const kpi = useMemo(() => ({
+    count:     rows.length,
+    totalCost: rows.reduce((s, e) => s + (e.amount      || 0), 0),
+    totalPaid: rows.reduce((s, e) => s + (e.paid_amount || 0), 0),
+    totalDebt: rows.reduce((s, e) => s + (e.balance     || 0), 0),
+  }), [rows]);
 
   const columns = [
-    { key: 'date',         label: 'التاريخ',    render: v  => fmtDate(v) },
-    { key: '_doctorName',  label: 'الطبيب',     render: v  => <span className="exp-doc-name">👨‍⚕️ {v}</span> },
+    { key: 'date',         label: 'التاريخ',        render: v  => fmtDate(v) },
+    { key: '_doctorName',  label: 'الطبيب',         render: v  => <span className="exp-doc-name">👨‍⚕️ {v}</span> },
     { key: 'description',  label: 'المادة / البند', sortable: false },
-    { key: 'amount',       label: 'التكلفة',    render: v  => fmtCurrency(v) },
-    { key: 'paid_amount',  label: 'المدفوع',    render: v  => <span style={{ color: 'var(--success)' }}>{fmtCurrency(v)}</span> },
-    { key: 'balance',      label: 'الدين',      render: v  => v > 0
+    { key: 'amount',       label: 'التكلفة',        render: v  => fmtCurrency(v) },
+    { key: 'paid_amount',  label: 'المدفوع',        render: v  => <span style={{ color: 'var(--success)' }}>{fmtCurrency(v)}</span> },
+    { key: 'balance',      label: 'الدين',          render: v  => v > 0
         ? <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{fmtCurrency(v)}</span>
         : <span style={{ color: 'var(--text-muted)' }}>—</span> },
-    { key: 'status',       label: 'الحالة',     render: v  => <StatusBadge status={v} />, sortable: false },
+    { key: 'status',       label: 'الحالة',         render: v  => <StatusBadge status={v} />, sortable: false },
   ];
+
   return (
     <div>
       <div className="exp-tab-header">
         <h3 className="exp-tab-title">👨‍⚕️ مصاريف الأطباء</h3>
-        <span className="exp-tab-desc">تتبع التكاليف المرتبطة بأطباء محددين (مواد، أدوات، طلبات خاصة)</span>
+        <span className="exp-tab-desc">تتبع التكاليف المرتبطة بأطباء محددين — اختر طبيباً لعرض سجله</span>
       </div>
+
+      {/* ── Doctor Filter Bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <label style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: 13, whiteSpace: 'nowrap' }}>
+          تصفية حسب الطبيب:
+        </label>
+        <select
+          className="field-input"
+          style={{ maxWidth: 260 }}
+          value={selectedDoctor}
+          onChange={e => setSelectedDoctor(e.target.value)}
+        >
+          <option value="">— جميع الأطباء —</option>
+          {activeDoctors.map(d => (
+            <option key={d.id} value={String(d.id)}>{d.name}</option>
+          ))}
+        </select>
+        {selectedDoctor && (
+          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDoctor('')}>
+            ✕ إلغاء الفلتر
+          </button>
+        )}
+      </div>
+
+      {/* ── Per-doctor KPI Summary ── */}
+      {rows.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 10, marginBottom: 16 }}>
+          {[
+            { label: 'عدد السجلات',     value: `${kpi.count} سجل`,         color: 'var(--text-primary)' },
+            { label: 'إجمالي التكاليف', value: fmtCurrency(kpi.totalCost), color: 'var(--text-primary)' },
+            { label: 'إجمالي المدفوع',  value: fmtCurrency(kpi.totalPaid), color: 'var(--success)' },
+            { label: 'إجمالي الديون',   value: fmtCurrency(kpi.totalDebt), color: kpi.totalDebt > 0 ? 'var(--danger)' : 'var(--text-muted)' },
+          ].map((item, i) => (
+            <div key={i} style={{
+              background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: '12px 16px',
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{item.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: item.color }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <ExpenseTable columns={columns} rows={rows} emptyMsg="لا توجد مصاريف مرتبطة بأطباء" />
     </div>
   );
@@ -239,8 +310,8 @@ export default function ExpensesDashboard() {
   const filtered = useMemo(() => {
     return expenses.filter(e => {
       const matchSearch = !search.trim() ||
-        e.description.toLowerCase().includes(search.toLowerCase()) ||
-        (e.id || '').toLowerCase().includes(search.toLowerCase());
+        (e.description || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(e.id || '').toLowerCase().includes(search.toLowerCase());
       const matchFrom = !fromDate || e.date >= fromDate;
       const matchTo   = !toDate   || e.date <= toDate;
       return matchSearch && matchFrom && matchTo;

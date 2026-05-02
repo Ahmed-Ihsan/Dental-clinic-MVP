@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import DetailModal from './DetailModal.jsx';
 
 const statusOptions = [
@@ -25,16 +26,30 @@ const fields = [
   { name: 'notes', label: 'ملاحظات', type: 'textarea', placeholder: 'أضف ملاحظات...', rows: 3, full: true, showInView: true }
 ];
 
-const AppointmentDetailModal = ({ appointment, onClose, onUpdate }) => (
-  <DetailModal
-    entity={appointment}
-    fields={fields}
-    title="الموعد"
-    icon="📅"
-    endpoint="/appointments"
-    onClose={onClose}
-    onUpdate={onUpdate}
-  />
-);
+const AppointmentDetailModal = ({ appointment, onClose, onUpdate }) => {
+  const navigate = useNavigate();
+
+  const goToCaseSheet = () => {
+    onClose();
+    navigate(`/patients/${appointment.patient_id}/case-sheet`);
+  };
+
+  return (
+    <DetailModal
+      entity={appointment}
+      fields={fields}
+      title="الموعد"
+      icon="📅"
+      endpoint="/appointments"
+      onClose={onClose}
+      onUpdate={onUpdate}
+      extraActions={
+        <button onClick={goToCaseSheet} className="btn btn-success">
+          📋 ملف المريض
+        </button>
+      }
+    />
+  );
+};
 
 export default AppointmentDetailModal;

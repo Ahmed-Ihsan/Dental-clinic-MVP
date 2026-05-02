@@ -1,0 +1,15 @@
+export const TREATMENT_CATEGORIES = [
+  { value: 'Filling',              label: 'Filling — حشو' },
+  { value: 'Endodontic Treatment', label: 'Endodontic Treatment — علاج عصب' },
+  { value: 'Extraction',           label: 'Extraction — خلع' },
+  { value: 'Surgery',              label: 'Surgery — جراحة عامة' },
+  { value: 'Implant Surgery',      label: 'Implant Surgery — جراحة زراعة' },
+  { value: 'Implant Prosthetic',   label: 'Implant Prosthetic — تركيب زراعة' },
+  { value: 'Removable Prosthetics',label: 'Removable Prosthetics — أطقم متحركة' },
+  { value: 'Crown and Bridge',     label: 'Crown and Bridge — تاج وجسر' },
+  { value: 'Periodontic',          label: 'Periodontic — علاج لثة' },
+  { value: 'Pediatric',            label: 'Pediatric — أسنان أطفال' },
+  { value: 'Orthodontic',          label: 'Orthodontic — تقويم أسنان' },
+  { value: 'Teeth Whitening',      label: 'Teeth Whitening — تبييض أسنان' },
+  { value: 'Diagnosis',            label: 'Diagnosis — تشخيص وفحص' },
+];

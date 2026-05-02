@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
+import { useAuth } from '../AuthContext.jsx';
 
 const STATUS_OPTIONS = [
   { value: 'scheduled', label: 'مجدول' },
@@ -9,9 +10,14 @@ const STATUS_OPTIONS = [
 ];
 
 const AppointmentForm = ({ onSave }) => {
+  const { user } = useAuth();
+  const isDoctor  = user?.role === 'doctor';
+  const myProfIds = user?.professional_ids ?? [];
+
   const EMPTY = {
     patient_id: '', appointment_date: '', start_time: '',
-    end_time: '', dentist_id: '', status: 'scheduled', notes: '',
+    end_time: '', dentist_id: isDoctor && myProfIds.length === 1 ? myProfIds[0] : '',
+    status: 'scheduled', notes: '',
   };
 
   const [form,    setForm]    = useState(EMPTY);
@@ -19,7 +25,8 @@ const AppointmentForm = ({ onSave }) => {
   const [success, setSuccess] = useState(false);
 
   /* ── Patient data ── */
-  const [allPatients, setAllPatients] = useState([]);
+  const [allPatients,    setAllPatients]    = useState([]);
+  const [professionals,  setProfessionals]  = useState([]);
 
   /* ── Typeahead state ── */
   const [patientQuery,   setPatientQuery]   = useState('');
@@ -30,9 +37,10 @@ const AppointmentForm = ({ onSave }) => {
   const wrapRef = useRef();
   const debRef  = useRef();
 
-  /* ── Fetch patients once ── */
+  /* ── Fetch patients + professionals once ── */
   useEffect(() => {
     api.get('/patients').then(r => setAllPatients(r.data)).catch(console.error);
+    api.get('/professionals').then(r => setProfessionals(r.data)).catch(console.error);
   }, []);
 
   /* ── Close dropdown on outside click ── */
@@ -185,9 +193,19 @@ const AppointmentForm = ({ onSave }) => {
         </div>
 
         <div className="field-group">
-          <label className="field-label">معرف الطبيب</label>
-          <input name="dentist_id" value={form.dentist_id} onChange={handleChange}
-            placeholder="رقم معرف الطبيب" className="field-input" />
+          <label className="field-label">الطبيب</label>
+          {isDoctor && myProfIds.length === 1 ? (
+            <div className="field-input" style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: 6 }}>
+              🔒 {professionals.find(p => p.id === myProfIds[0]) ? `${professionals.find(p => p.id === myProfIds[0]).first_name} ${professionals.find(p => p.id === myProfIds[0]).last_name}` : 'طبيبك المعيّن'}
+            </div>
+          ) : (
+            <select name="dentist_id" value={form.dentist_id} onChange={handleChange} className="field-input">
+              <option value="">اختر طبيباً...</option>
+              {(isDoctor ? professionals.filter(p => myProfIds.includes(p.id)) : professionals).map(p => (
+                <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="field-group">

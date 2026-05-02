@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
+import { TREATMENT_CATEGORIES } from '../constants/treatmentCategories';
 
 const TreatmentForm = ({ onSave }) => {
   const EMPTY = {
@@ -195,9 +196,14 @@ const TreatmentForm = ({ onSave }) => {
         </div>
 
         <div className="field-group form-grid-full">
-          <label className="field-label">نوع العلاج *</label>
-          <input name="treatment_type" value={form.treatment_type} onChange={handleChange}
-            placeholder="مثال: حشو، تنظيف، تقويم..." required className="field-input" />
+          <label className="field-label">تصنيف العلاج *</label>
+          <select name="treatment_type" value={form.treatment_type} onChange={handleChange}
+            required className="field-input">
+            <option value="">-- اختر تصنيف العلاج --</option>
+            {TREATMENT_CATEGORIES.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="field-group">

@@ -70,10 +70,14 @@ export function useCaseSheetData(patientId) {
     return res.data;
   };
 
+  const updatePatientField = (updates) => {
+    setPatient(prev => prev ? { ...prev, ...updates } : prev);
+  };
+
   return {
     patient, medicalHistory, treatments, appointments, bills,
     loading, error, refetch: fetchAll,
     addMedicalHistory, addTreatment, addAppointment, addBill,
-    deleteTreatment, deleteMedicalHistory,
+    deleteTreatment, deleteMedicalHistory, updatePatientField,
   };
 }

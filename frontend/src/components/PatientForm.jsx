@@ -84,7 +84,7 @@ const PatientForm = ({ onSave }) => {
         <div className="field-group">
           <label className="field-label">رقم الهاتف</label>
           <input name="phone" value={form.phone} onChange={handleChange}
-            placeholder="05xxxxxxxx" className="field-input" />
+            type="tel" placeholder="05xxxxxxxx" className="field-input" />
         </div>
 
         <div className="field-group">

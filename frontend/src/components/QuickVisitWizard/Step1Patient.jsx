@@ -209,6 +209,7 @@ export default function Step1Patient({ data, onChange }) {
               <label className="field-label">رقم الهاتف</label>
               <input
                 name="phone"
+                type="tel"
                 value={data.phone}
                 onChange={handleNewField}
                 placeholder="07xxxxxxxxx"

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import api from '../services/api';
 
-const DetailModal = ({ entity, fields, title, icon, endpoint, onClose, onUpdate, readOnly = false }) => {
+const DetailModal = ({ entity, fields, title, icon, endpoint, onClose, onUpdate, readOnly = false, extraActions }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ ...entity });
 
@@ -92,6 +92,7 @@ const DetailModal = ({ entity, fields, title, icon, endpoint, onClose, onUpdate,
           ) : (
             <>
               <button onClick={onClose} className="btn btn-ghost">إغلاق</button>
+              {extraActions}
               {!readOnly && <button onClick={() => setIsEditing(true)} className="btn btn-primary">✏️ تعديل</button>}
             </>
           )}

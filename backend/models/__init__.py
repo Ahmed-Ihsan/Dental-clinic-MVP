@@ -6,7 +6,7 @@ from .insurance import Insurance
 from .bill import Bill
 from .communication import Communication
 from .professional import Professional
-from .user import User
+from .user import User, VALID_ROLES
 from .salary import Salary
 from .salary_component import SalaryComponent
 from .payroll import Payroll
@@ -25,6 +25,7 @@ __all__ = [
     "Communication",
     "Professional",
     "User",
+    "VALID_ROLES",
     "Salary",
     "SalaryComponent",
     "Payroll",

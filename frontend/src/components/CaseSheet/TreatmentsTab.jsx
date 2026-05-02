@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import FormModal from './FormModal';
+import { TREATMENT_CATEGORIES } from '../../constants/treatmentCategories';
 
 function formatDate(d) {
   if (!d) return '—';
@@ -12,10 +13,11 @@ function formatCurrency(n) {
 }
 
 const TREATMENT_FIELDS = [
-  { name: 'treatment_type',  label: 'نوع العلاج',     type: 'text',     required: true,  placeholder: 'مثال: حشو، تاج، تنظيف...' },
+  { name: 'treatment_type',  label: 'تصنيف العلاج',  type: 'select',   required: true,
+    options: TREATMENT_CATEGORIES },
   { name: 'cost',            label: 'التكلفة (IQD)', type: 'number',   required: true,  placeholder: '0.00' },
-  { name: 'treatment_date',  label: 'تاريخ العلاج',   type: 'date',     required: true },
-  { name: 'notes',           label: 'ملاحظات',        type: 'textarea', required: false, placeholder: 'تفاصيل إضافية...' },
+  { name: 'treatment_date',  label: 'تاريخ العلاج',  type: 'date',     required: true },
+  { name: 'notes',           label: 'ملاحظات',       type: 'textarea', required: false, placeholder: 'تفاصيل إضافية...' },
 ];
 
 export default function TreatmentsTab({ treatments, onAdd, onDelete }) {

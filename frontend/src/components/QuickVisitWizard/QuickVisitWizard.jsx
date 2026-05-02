@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
+import { useAuth } from '../../AuthContext.jsx';
 
 import Step1Patient  from './Step1Patient.jsx';
 import Step2Treatment from './Step2Treatment.jsx';
@@ -51,6 +52,7 @@ function validateStep(step, data) {
    MAIN WIZARD COMPONENT
    ════════════════════════════════════════════════════ */
 export default function QuickVisitWizard({ isOpen, onClose, onSuccess }) {
+  const { user } = useAuth();
   const [step,    setStep]    = useState(1);
   const [data,    setData]    = useState(INITIAL_STATE);
   const [error,   setError]   = useState('');
@@ -127,10 +129,31 @@ export default function QuickVisitWizard({ isOpen, onClose, onSuccess }) {
       const treatment_id = treatmentRes.data?.id;
       setApiLog(l => [...l.slice(0,-1), { status: 'done', msg: `✅ تم تسجيل العلاج #${treatment_id}` }]);
 
+      /* ── Step B2: Create Appointment (links bill to the doctor) ── */
+      let appointment_id = null;
+      if (user?.professional_id || user?.role !== 'doctor') {
+        setApiLog(l => [...l, { status: 'pending', msg: 'ربط الزيارة بملف الطبيب...' }]);
+        try {
+          const aptPayload = {
+            patient_id,
+            appointment_date: data.treatment_date,
+            start_time: '09:00',
+            end_time:   '10:00',
+            dentist_id: user?.professional_id || null,
+            status: 'completed',
+            notes: data.notes || '',
+          };
+          const aptRes = await api.post('/appointments', aptPayload);
+          appointment_id = aptRes.data?.id;
+          setApiLog(l => [...l.slice(0,-1), { status: 'done', msg: `✅ تم ربط الزيارة #${appointment_id}` }]);
+        } catch { setApiLog(l => [...l.slice(0,-1), { status: 'done', msg: '✔️ تم تخطي ربط الموعد' }]); }
+      }
+
       /* ── Step C: Create Bill ── */
       setApiLog(l => [...l, { status: 'pending', msg: 'إنشاء الفاتورة...' }]);
       const billPayload = {
         patient_id,
+        appointment_id,
         total_amount: data.total_amount || 0,
         paid_amount:  data.paid_amount  || 0,
         discount_amount: data.discount_amount || 0,

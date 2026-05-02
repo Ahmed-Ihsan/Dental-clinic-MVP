@@ -20,6 +20,7 @@ import BillManagement       from './components/BillManagement.jsx';
 import PatientCaseSheet     from './components/CaseSheet/PatientCaseSheet.jsx';
 import FinancePage          from './components/FinancePage.jsx';
 import StaffPage            from './components/StaffPage.jsx';
+import UserManagement       from './components/UserManagement.jsx';
 import Login                from './components/Login.jsx';
 import QuickEntryModal      from './components/QuickEntryModal.jsx';
 import QuickVisitWizard    from './components/QuickVisitWizard/QuickVisitWizard.jsx';
@@ -27,23 +28,29 @@ import './components/QuickVisitWizard/QuickVisitWizard.css';
 
 import './index.css';
 
-/* ─── Sidebar nav items (trimmed: Treatments & MedicalHistories removed) ─── */
+const ALL_ROLES = ['admin', 'doctor', 'secretary'];
+
+/* ─── Sidebar nav items with per-role visibility ─── */
 const navItems = [
-  { path: '/',             label: 'لوحة التحكم',    icon: '◈',   title: 'لوحة التحكم' },
-  { path: '/patients',     label: 'إدارة المرضى',   icon: '👤',  title: 'إدارة المرضى' },
-  { path: '/appointments', label: 'إدارة المواعيد',  icon: '📅',  title: 'إدارة المواعيد' },
-  { path: '/bills',        label: 'المحاسبة',         icon: '💰',  title: 'المحاسبة' },
-  { path: '/finance',      label: 'المالية',          icon: '💹',  title: 'المالية' },
-  { path: '/staff',        label: 'إدارة الفريق',     icon: '👥',  title: 'إدارة الفريق' },
+  { path: '/',             label: 'لوحة التحكم',       icon: '◈',   title: 'لوحة التحكم',       roles: ALL_ROLES },
+  { path: '/patients',     label: 'إدارة المرضى',      icon: '👤',  title: 'إدارة المرضى',      roles: ALL_ROLES },
+  { path: '/appointments', label: 'إدارة المواعيد',     icon: '📅',  title: 'إدارة المواعيد',     roles: ALL_ROLES },
+  { path: '/bills',        label: 'المحاسبة',            icon: '💰',  title: 'المحاسبة',            roles: ALL_ROLES },
+  { path: '/finance',      label: 'المالية',             icon: '💹',  title: 'المالية',             roles: ['admin'] },
+  { path: '/staff',        label: 'إدارة الفريق',        icon: '👥',  title: 'إدارة الفريق',        roles: ['admin'] },
+  { path: '/admin/users',  label: 'إدارة المستخدمين',   icon: '🔑',  title: 'إدارة المستخدمين',   roles: ['admin'] },
 ];
+
+const ROLE_LABELS = { admin: 'مدير النظام', doctor: 'طبيب', secretary: 'سكرتير' };
+const ROLE_ICONS  = { admin: '👑',          doctor: '👨‍⚕️',   secretary: '📋' };
 
 /* ══════════════════════════════════════════════════════════════════════════
    SIDEBAR
    ══════════════════════════════════════════════════════════════════════════ */
 function Sidebar() {
-  const location  = useLocation();
-  const navigate  = useNavigate();
-  const { logout } = useAuth();
+  const location        = useLocation();
+  const navigate        = useNavigate();
+  const { logout, user } = useAuth();
 
   const handleLogout = async () => {
     try { await api.post('/logout'); }
@@ -51,6 +58,10 @@ function Sidebar() {
     logout();
     navigate('/login');
   };
+
+  const visibleItems = navItems.filter(item =>
+    !item.roles || (user && item.roles.includes(user.role))
+  );
 
   return (
     <aside className="sidebar">
@@ -66,7 +77,7 @@ function Sidebar() {
 
       <nav className="sidebar-nav">
         <div className="sidebar-section-title">القائمة الرئيسية</div>
-        {navItems.map(item => (
+        {visibleItems.map(item => (
           <Link
             key={item.path}
             to={item.path}
@@ -80,10 +91,10 @@ function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-info">
-          <div className="sidebar-footer-avatar">👨‍⚕️</div>
+          <div className="sidebar-footer-avatar">{ROLE_ICONS[user?.role] || '�'}</div>
           <div className="sidebar-footer-text">
-            <small>مدير النظام</small>
-            <span>عيادة الأسنان</span>
+            <small>{ROLE_LABELS[user?.role] || '...'}</small>
+            <span>{user?.username || 'مستخدم'}</span>
           </div>
         </div>
         <button
@@ -329,6 +340,7 @@ function AppShell() {
             <Route path="/bills"                             element={<BillManagement />} />
             <Route path="/finance"                           element={<FinancePage />} />
             <Route path="/staff"                             element={<StaffPage />} />
+            <Route path="/admin/users"                       element={<UserManagement />} />
             {/* Legacy redirects — keep old bookmarks working */}
             <Route path="/revenue"       element={<Navigate to="/finance" replace />} />
             <Route path="/expenses"      element={<Navigate to="/finance" replace />} />
@@ -355,7 +367,14 @@ function AppShell() {
 }
 
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
+
+  useEffect(() => {
+    api.get('/me')
+      .then(res => login({ username: res.data.username, role: res.data.role, professional_ids: res.data.professional_ids ?? [] }))
+      .catch(() => {});
+  }, [login]);
+
   return (
     <Router>
       {isAuthenticated ? <AppShell /> : <Login />}
