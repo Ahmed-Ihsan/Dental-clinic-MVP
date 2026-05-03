@@ -55,6 +55,7 @@ from routes.payroll_routes import payroll_bp
 from routes.installment_routes import installment_bp
 from routes.revenue_routes import revenue_bp
 from routes.expense_routes import expense_bp
+from routes.backup_routes import backup_bp
 
 app.register_blueprint(patient_bp, url_prefix="/api")
 app.register_blueprint(appointment_bp, url_prefix="/api")
@@ -69,6 +70,7 @@ app.register_blueprint(payroll_bp, url_prefix="/api")
 app.register_blueprint(installment_bp, url_prefix="/api")
 app.register_blueprint(revenue_bp)
 app.register_blueprint(expense_bp)
+app.register_blueprint(backup_bp, url_prefix='/api')
 
 
 @login_manager.user_loader
@@ -92,6 +94,9 @@ def me():
 def hello():
     return "Hello, Dental App!"
 
+
+from utils.scheduler import init_scheduler
+init_scheduler(app)
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -22,6 +22,7 @@ import FinancePage          from './components/FinancePage.jsx';
 import StaffPage            from './components/StaffPage.jsx';
 import UserManagement       from './components/UserManagement.jsx';
 import Login                from './components/Login.jsx';
+import SettingsPage         from './components/SettingsPage.jsx';
 import QuickEntryModal      from './components/QuickEntryModal.jsx';
 import QuickVisitWizard    from './components/QuickVisitWizard/QuickVisitWizard.jsx';
 import './components/QuickVisitWizard/QuickVisitWizard.css';
@@ -39,6 +40,7 @@ const navItems = [
   { path: '/finance',      label: 'المالية',             icon: '💹',  title: 'المالية',             roles: ['admin'] },
   { path: '/staff',        label: 'إدارة الفريق',        icon: '👥',  title: 'إدارة الفريق',        roles: ['admin'] },
   { path: '/admin/users',  label: 'إدارة المستخدمين',   icon: '🔑',  title: 'إدارة المستخدمين',   roles: ['admin'] },
+  { path: '/settings',     label: 'الإعدادات والنسخ',    icon: '⚙️',  title: 'الإعدادات',           roles: ['admin'] },
 ];
 
 const ROLE_LABELS = { admin: 'مدير النظام', doctor: 'طبيب', secretary: 'سكرتير' };
@@ -341,6 +343,7 @@ function AppShell() {
             <Route path="/finance"                           element={<FinancePage />} />
             <Route path="/staff"                             element={<StaffPage />} />
             <Route path="/admin/users"                       element={<UserManagement />} />
+            <Route path="/settings"                          element={<SettingsPage />} />
             {/* Legacy redirects — keep old bookmarks working */}
             <Route path="/revenue"       element={<Navigate to="/finance" replace />} />
             <Route path="/expenses"      element={<Navigate to="/finance" replace />} />

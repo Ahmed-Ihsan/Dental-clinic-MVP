@@ -1,0 +1,10 @@
+{
+  "auto_backup": {
+    "enabled": true,
+    "interval": "daily",
+    "hour": 2,
+    "minute": 0,
+    "max_backups": 10,
+    "last_backup": "2026-05-03T20:40:38.414214"
+  }
+}
